@@ -9,19 +9,22 @@ import FileSystemService from './FileSystemService.js';
 /**
  * Service responsible for gathering information about files to be downloaded.
  * This includes checking file sizes, and determining if files have been previously downloaded or extracted.
+ * @class
  */
 class DownloadInfoService {
   /**
    * Creates an instance of DownloadInfoService.
+   * @param {MyrientService} myrientService An instance of MyrientService.
    */
-  constructor() {
+  constructor(myrientService) {
     this.httpAgent = new https.Agent({ keepAlive: true });
     this.abortController = new AbortController();
-    this.myrientService = new MyrientService();
+    this.myrientService = myrientService;
   }
 
   /**
    * Cancels any ongoing download information retrieval processes.
+   * @memberof DownloadInfoService
    */
   cancel() {
     this.abortController.abort();
@@ -29,6 +32,7 @@ class DownloadInfoService {
 
   /**
    * Checks if the download information retrieval process has been cancelled.
+   * @memberof DownloadInfoService
    * @returns {boolean} True if cancelled, false otherwise.
    */
   isCancelled() {
@@ -37,6 +41,7 @@ class DownloadInfoService {
 
   /**
    * Resets the AbortController, allowing for new operations to be started.
+   * @memberof DownloadInfoService
    */
   reset() {
     this.abortController = new AbortController();
@@ -45,9 +50,10 @@ class DownloadInfoService {
 
   /**
    * Recursively fetches all file links within a given directory URL and its subdirectories.
+   * @memberof DownloadInfoService
    * @param {string} directoryUrl The URL of the directory to scan.
    * @param {string} [currentRelativePath=''] The current relative path from the initial selected directory.
-   * @returns {Promise<Array<object>>} A flattened array of file objects found within the directory and its subdirectories.
+   * @returns {Promise<Array<{name: string, href: string, type: string, relativePath: string}>>} A flattened array of file objects found within the directory and its subdirectories.
    * @private
    */
   async _recursivelyGetFilesInDirectory(directoryUrl, currentRelativePath = '') {
@@ -71,11 +77,12 @@ class DownloadInfoService {
   /**
    * Gathers download information for a list of files and/or directories, including total size,
    * and identifies files that can be skipped due to prior download or extraction.
-   * @param {object} win The Electron BrowserWindow instance for sending progress updates.
+   * @memberof DownloadInfoService
+   * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance for sending progress updates.
    * @param {string} baseUrl The base URL for the items.
    * @param {Array<object>} items An array of file and/or directory objects, each with at least `name_raw`, `href`, and `type`.
    * @param {string} targetDir The target directory for downloads.
-   * @param {boolean} [createSubfolder=false] Whether to create subfolders for each download.
+   * @param {boolean} [createSubfolder=false] Whether to create a subfolder for each download.
    * @param {boolean} [maintainFolderStructure=false] Whether to maintain the site's folder structure.
    * @returns {Promise<object>} An object containing:
    *   - `filesToDownload`: Array of file objects that need to be downloaded.

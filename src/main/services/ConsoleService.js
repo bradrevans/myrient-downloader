@@ -1,10 +1,11 @@
 /**
  * Manages logging of download-related messages to the renderer process.
+ * @class
  */
-class DownloadConsole {
+class ConsoleService {
   /**
-   * Creates an instance of DownloadConsole.
-   * @param {object} win The Electron BrowserWindow instance to send messages to.
+   * Creates an instance of ConsoleService.
+   * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance to send messages to.
    */
   constructor(win) {
     this.win = win;
@@ -12,6 +13,7 @@ class DownloadConsole {
 
   /**
    * Sends a log message to the renderer process.
+   * @memberof ConsoleService
    * @param {string} message The message to log.
    */
   log(message) {
@@ -20,6 +22,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that the download is complete.
+   * @memberof ConsoleService
    */
   logDownloadComplete() {
     this.log('Download complete!');
@@ -27,6 +30,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that the download has been cancelled.
+   * @memberof ConsoleService
    */
   logDownloadCancelled() {
     this.log('Download cancelled!');
@@ -34,6 +38,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that the extraction process is starting.
+   * @memberof ConsoleService
    */
   logDownloadStartingExtraction() {
     this.log('Starting extraction...');
@@ -41,6 +46,7 @@ class DownloadConsole {
 
   /**
    * Logs an error message.
+   * @memberof ConsoleService
    * @param {string} message The error message to log.
    */
   logError(message) {
@@ -49,6 +55,7 @@ class DownloadConsole {
 
   /**
    * Logs the total size of the download.
+   * @memberof ConsoleService
    * @param {string} size The formatted total download size.
    */
   logTotalDownloadSize(size) {
@@ -57,6 +64,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that a download is resuming.
+   * @memberof ConsoleService
    * @param {string} filename The name of the file being resumed.
    * @param {number} bytes The number of bytes already downloaded.
    */
@@ -66,6 +74,7 @@ class DownloadConsole {
 
   /**
    * Logs an error message when a subfolder cannot be created.
+   * @memberof ConsoleService
    * @param {string} folder The name of the subfolder that could not be created.
    * @param {string} message The error message.
    */
@@ -75,6 +84,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that an invalid entry is being skipped.
+   * @memberof ConsoleService
    * @param {object} entry The invalid entry that is being skipped.
    */
   logSkippingInvalidEntry(entry) {
@@ -83,6 +93,7 @@ class DownloadConsole {
 
   /**
    * Logs an error message during file extraction.
+   * @memberof ConsoleService
    * @param {string} filename The name of the file that caused the extraction error.
    * @param {string} message The error message.
    */
@@ -92,6 +103,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that the extraction process has been cancelled.
+   * @memberof ConsoleService
    */
   logExtractionCancelled() {
     this.log('Extraction cancelled!');
@@ -99,6 +111,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that no archives were found for extraction.
+   * @memberof ConsoleService
    */
   logNoArchivesToExtract() {
     this.log('No .zip archives found to extract.');
@@ -106,6 +119,7 @@ class DownloadConsole {
 
   /**
    * Logs the number of archives found for extraction.
+   * @memberof ConsoleService
    * @param {number} count The number of archives found.
    */
   logFoundArchivesToExtract(count) {
@@ -114,6 +128,7 @@ class DownloadConsole {
 
   /**
    * Logs the total uncompressed size of all archives.
+   * @memberof ConsoleService
    * @param {string} size The formatted total uncompressed size.
    */
   logTotalUncompressedSize(size) {
@@ -122,6 +137,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that the extraction process is complete.
+   * @memberof ConsoleService
    */
   logExtractionProcessComplete() {
     this.log('Extraction complete!');
@@ -129,6 +145,7 @@ class DownloadConsole {
 
   /**
    * Logs a message indicating that a scan was skipped for a file.
+   * @memberof ConsoleService
    * @param {string} filename The name of the file for which the scan was skipped.
    * @param {string} message The reason for skipping the scan.
    */
@@ -137,4 +154,4 @@ class DownloadConsole {
   }
 }
 
-export default DownloadConsole;
+export default ConsoleService;

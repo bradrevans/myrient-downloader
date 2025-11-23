@@ -1,13 +1,21 @@
 /**
- * Service responsible for applying various filters to a list of files.
+ * Service responsible for applying various filters to a list of files,
+ * including tag-based filtering, revision filtering, and deduplication.
+ * @class
  */
 class FilterService {
   /**
    * Applies a series of filters (tag, revision, deduplication) to a list of files.
-   * @param {Array<object>} allFiles The initial list of files to filter.
-   * @param {Array<string>} allTags All available tags across all files.
-   * @param {object} filters An object containing the filter criteria.
-   * @returns {Array<object>} The filtered list of files.
+   * @memberof FilterService
+   * @param {Array<object>} allFiles The initial list of file objects to filter. Each file object should have at least `tags`, `base_name`, and `revision` properties.
+   * @param {Array<string>} allTags All available tags across all files (currently unused in this method, but passed through from manager).
+   * @param {object} filters An object containing the filter criteria:
+   *   - `include_tags` (Array<string>): Tags that files must possess.
+   *   - `exclude_tags` (Array<string>): Tags that files must NOT possess.
+   *   - `rev_mode` (string): Revision mode ('all', 'highest').
+   *   - `dedupe_mode` (string): Deduplication mode ('all', 'priority').
+   *   - `priority_list` (Array<string>): Ordered list of tags for 'priority' deduplication.
+   * @returns {Array<object>} The filtered list of file objects.
    */
   applyFilters(allFiles, allTags, filters) {
     const listAfterTags = this._applyTagFilter(allFiles, filters.include_tags, filters.exclude_tags);
@@ -18,11 +26,12 @@ class FilterService {
 
   /**
    * Applies include/exclude tag filtering to a list of files.
-   * @param {Array<object>} fileList The list of files to filter.
-   * @param {Array<string>} includeTags Tags that must be present (if any are specified).
-   * @param {Array<string>} excludeTags Tags that must not be present.
-   * @returns {Array<object>} The filtered file list.
    * @private
+   * @memberof FilterService
+   * @param {Array<object>} fileList The list of file objects to filter.
+   * @param {Array<string>} includeTags An array of tags; files must contain at least one of these if specified.
+   * @param {Array<string>} excludeTags An array of tags; files must not contain any of these if specified.
+   * @returns {Array<object>} The filtered file list.
    */
   _applyTagFilter(fileList, includeTags, excludeTags) {
     const includeTagsSet = new Set(includeTags || []);
@@ -41,10 +50,11 @@ class FilterService {
 
   /**
    * Applies revision-based filtering to a list of files, typically keeping only the highest revision.
-   * @param {Array<object>} fileList The list of files to filter.
-   * @param {object} filters The filter criteria, including `rev_mode`.
-   * @returns {Array<object>} The filtered list of files.
    * @private
+   * @memberof FilterService
+   * @param {Array<object>} fileList The list of file objects to filter.
+   * @param {object} filters The filter criteria, including `rev_mode` (e.g., 'all', 'highest').
+   * @returns {Array<object>} The filtered list of file objects.
    */
   _applyRevisionFilter(fileList, filters) {
     const mode = filters.rev_mode || 'all';
@@ -65,11 +75,9 @@ class FilterService {
 
         const maxRevision = Math.max(...filesForGame.map(f => f.revision));
 
-        for (const f of filesForGame) {
-          if (f.revision === maxRevision) {
-            finalList.push(f);
-          }
-        }
+        // In case of multiple files having the same highest revision, keep them all
+        const highestRevisionFiles = filesForGame.filter(f => f.revision === maxRevision);
+        finalList.push(...highestRevisionFiles);
       }
       return finalList;
     }
@@ -77,11 +85,12 @@ class FilterService {
   }
 
   /**
-   * Applies deduplication filtering to a list of files, based on different modes.
-   * @param {Array<object>} fileList The list of files to filter.
-   * @param {object} filters The filter criteria, including `dedupe_mode`, `priority_list`, and `keep_fallbacks`.
-   * @returns {Array<object>} The deduplicated list of files.
+   * Applies deduplication filtering to a list of files, based on different modes (e.g., 'priority').
    * @private
+   * @memberof FilterService
+   * @param {Array<object>} fileList The list of file objects to filter.
+   * @param {object} filters The filter criteria, including `dedupe_mode` ('all', 'priority') and `priority_list` (Array<string>).
+   * @returns {Array<object>} The deduplicated list of file objects.
    */
   _applyDedupeFilter(fileList, filters) {
     const mode = filters.dedupe_mode || 'all';
@@ -121,11 +130,12 @@ class FilterService {
         }
 
         if (!bestFile) {
-          bestFile = gameVersions[0];
+          bestFile = gameVersions[0]; // Fallback to the first file if no tags match priority list
         }
 
         const hasDiscTag = (file) => file.tags.some(t => /^(Disc|Cart|Side) /.test(t));
 
+        // Collect all files that have the best calculated score, in case of ties
         const allFilesWithBestScore = gameVersions.filter(f => {
           let currentScore = 0;
           for (const tag of f.tags) {
@@ -134,6 +144,7 @@ class FilterService {
           return currentScore === bestScore;
         });
 
+        // If there are disc files among those with the best score, prioritize them
         const discFilesWithBestScore = allFilesWithBestScore.filter(hasDiscTag);
 
         if (discFilesWithBestScore.length > 0) {
@@ -142,7 +153,7 @@ class FilterService {
           finalList.push(bestFile);
         }
       }
-      return [...new Set(finalList)];
+      return [...new Set(finalList)]; // Ensure uniqueness in the final list
     }
     return fileList;
   }

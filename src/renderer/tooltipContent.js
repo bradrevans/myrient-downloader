@@ -1,3 +1,30 @@
+/**
+ * @typedef {object} TooltipContent
+ * @property {string} revisionMode - Explanation for revision mode.
+ * @property {string} dedupeMode - Explanation for deduplication mode.
+ * @property {string} priorityList - Explanation for the priority list.
+ * @property {string} availableTags - Explanation for available tags.
+ * @property {string} regionFiltering - Explanation for region filtering.
+ * @property {string} languageFiltering - Explanation for language filtering.
+ * @property {string} otherFiltering - Explanation for other filtering.
+ * @property {string} includeTags - Explanation for include tags.
+ * @property {string} excludeTags - Explanation for exclude tags.
+ * @property {string} maintainSiteFolderStructure - Explanation for maintaining site folder structure.
+ * @property {string} createSubfolder - Explanation for creating subfolders.
+ * @property {string} extractArchives - Explanation for extracting archives.
+ * @property {string} extractPreviouslyDownloaded - Explanation for extracting previously downloaded archives.
+ * @property {string} overallDownloadProgress - Explanation for overall download progress.
+ * @property {string} fileDownloadProgress - Explanation for file download progress.
+ * @property {string} overallExtractionProgress - Explanation for overall extraction progress.
+ * @property {string} fileExtractionProgress - Explanation for file extraction progress.
+ * @property {string} throttleSpeed - Explanation for throttle speed.
+ * @property {string} downloadOptions - Explanation for download options.
+ */
+
+/**
+ * Contains tooltip messages for various UI elements in the renderer process.
+ * @type {TooltipContent}
+ */
 const tooltipContent = {
   revisionMode: "Determines which revisions of ROMs are kept when multiple versions exist. 'Highest' keeps only the newest revision (based on revision number), and 'All' includes all revisions found.",
   dedupeMode: "Controls how duplicate ROMs (files with identical base names) are handled. 'Priority' uses your custom priority list to select a single preferred file (or defaults to one at random if you haven't set priorities). 'All' keeps all duplicate files.",

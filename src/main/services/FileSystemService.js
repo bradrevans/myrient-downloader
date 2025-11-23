@@ -1,21 +1,30 @@
 import fs from 'fs';
 import path from 'path';
 import { URL } from 'url';
-import { DOWNLOAD_DIRECTORY_STRUCTURE } from '../constants.js';
+import { DOWNLOAD_DIRECTORY_STRUCTURE } from '../../shared/constants/appConstants.js';
 
 /**
  * Service responsible for file system interactions, particularly for managing download directories.
+ * It provides utilities for calculating file paths, checking extraction status, and analyzing directory structures.
+ * @class
  */
 class FileSystemService {
   /**
-   * Calculates the target and extraction paths for a file based on download options.
-   * @param {string} baseDir The base download directory.
-   * @param {object} fileInfo Information about the file, including name and href.
-   * @param {object} options Download options.
-   * @param {boolean} options.createSubfolder Whether to create a subfolder.
-   * @param {boolean} options.maintainFolderStructure Whether to maintain the remote folder structure.
-   * @param {string} options.baseUrl The base URL of the download.
-   * @returns {{targetPath: string, extractPath: string}}
+   * Calculates the target and extraction paths for a file based on provided download options.
+   * This static method determines where a file should be saved and where it should be extracted.
+   *
+   * @memberof FileSystemService
+   * @param {string} baseDir The base download directory chosen by the user (e.g., 'C:\Downloads').
+   * @param {object} fileInfo Information about the file to be downloaded.
+   * @param {string} fileInfo.name The name of the file (e.g., 'Game (USA).zip').
+   * @param {string} [fileInfo.href] The full URL of the file, used for maintaining folder structure.
+   * @param {object} options Download options that influence path calculation.
+   * @param {boolean} options.createSubfolder Whether to create a subfolder within `baseDir` named after the file (e.g., 'C:\Downloads\Game (USA)\Game (USA).zip').
+   * @param {boolean} options.maintainFolderStructure Whether to preserve the remote folder structure within the target directory (e.g., 'C:\Downloads\Emulator\ROMs\Game.zip').
+   * @param {string} options.baseUrl The base URL of the source, used with `maintainFolderStructure` to determine relative paths.
+   * @returns {{targetPath: string, extractPath: string}} An object containing:
+   *   - `targetPath`: The full absolute path where the downloaded file should be saved.
+   *   - `extractPath`: The full absolute path where the contents of an archive file should be extracted.
    */
   static calculatePaths(baseDir, fileInfo, { createSubfolder, maintainFolderStructure, baseUrl }) {
     const filename = fileInfo.name;
@@ -78,25 +87,31 @@ class FileSystemService {
   }
 
   /**
-   * Checks if an archive's contents already exist in the extraction path.
-   * @param {string} extractionPath The directory where files would be extracted.
-   * @param {string} archiveFilename The name of the archive file.
-   * @returns {Promise<boolean>} True if the content appears to be extracted.
+   * Checks if an archive's contents appear to have already been extracted to a specified path.
+   * This is a heuristic check based on directory existence and content.
+   *
+   * @memberof FileSystemService
+   * @param {string} extractionPath The directory path where the archive's contents are expected to be extracted.
+   * @param {string} archiveFilename The full filename of the archive (e.g., 'Game (USA).zip').
+   * @returns {Promise<boolean>} A promise that resolves to `true` if the content appears to be extracted (based on heuristics), otherwise `false`.
    */
   static async isAlreadyExtracted(extractionPath, archiveFilename) {
     try {
       const archiveBaseName = path.parse(archiveFilename).name;
       const extractionPathEnd = path.basename(extractionPath);
 
+      // Scenario 1: Extraction path itself is named after the archive and contains files
       if (extractionPathEnd.toLowerCase() === archiveBaseName.toLowerCase()) {
         if (fs.existsSync(extractionPath) && fs.lstatSync(extractionPath).isDirectory()) {
           const filesInDir = await fs.promises.readdir(extractionPath);
+          // If the directory is not empty and contains files other than just the archive itself
           if (filesInDir.length > 0 && filesInDir.some(f => f.toLowerCase() !== archiveFilename.toLowerCase())) {
             return true;
           }
         }
       }
 
+      // Scenario 2: A subfolder within the extraction path is named after the archive and contains files
       const potentialExtractDir = path.join(extractionPath, archiveBaseName);
       if (fs.existsSync(potentialExtractDir) && fs.lstatSync(potentialExtractDir).isDirectory()) {
         const filesInDir = await fs.promises.readdir(potentialExtractDir);
@@ -105,15 +120,18 @@ class FileSystemService {
         }
       }
     } catch (e) {
+      // Ignore errors during check, assume not extracted if any file system access fails
     }
     return false;
   }
 
   /**
-   * Checks the structure of a given download directory.
+   * Checks the structure of a given download directory to determine if it's empty, flat, has subfolders, or is mixed.
+   * @memberof FileSystemService
    * @param {string} downloadPath The absolute path to the download directory.
-   * @returns {Promise<DownloadDirectoryStructure>} A promise that resolves with the detected directory structure.
-   * @throws {Error} If an error occurs during file system access, other than the directory not existing.
+   * @returns {Promise<DOWNLOAD_DIRECTORY_STRUCTURE>} A promise that resolves with the detected directory structure enum value.
+   *   Possible values are `DOWNLOAD_DIRECTORY_STRUCTURE.EMPTY`, `FLAT`, `SUBFOLDERS`, or `MIXED`.
+   * @throws {Error} If an error occurs during file system access, other than the directory not existing (`ENOENT`).
    */
   async checkDownloadDirectoryStructure(downloadPath) {
     try {
@@ -141,9 +159,9 @@ class FileSystemService {
       }
     } catch (e) {
       if (e.code === 'ENOENT') {
-        return DOWNLOAD_DIRECTORY_STRUCTURE.EMPTY;
+        return DOWNLOAD_DIRECTORY_STRUCTURE.EMPTY; // Directory does not exist, consider it empty
       }
-      throw e;
+      throw e; // Re-throw other file system errors
     }
   }
 }

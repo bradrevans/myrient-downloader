@@ -1,22 +1,41 @@
 import stateService from './StateService.js';
-import apiService from './ApiService.js';
+import appService from './services/AppService.js';
+import windowService from './services/WindowService.js';
+import myrientDataService from './services/MyrientDataService.js';
+import downloadService from './services/DownloadService.js';
+import shellService from './services/ShellService.js';
+import filterService from './services/FilterService.js';
 import UIManager from './ui/UIManager.js';
 import DownloadUI from './ui/DownloadUI.js';
+import SettingsManager from './managers/SettingsManager.js';
 
+/**
+ * The instance of DownloadUI, initialized after DOM content is loaded.
+ * @type {DownloadUI}
+ */
 let downloadUI;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await stateService.init();
+  /**
+   * Initializes the application once the DOM is fully loaded.
+   * Sets up UI managers, loads initial data, and registers event listeners.
+   */
 
   const uiManager = new UIManager(document.getElementById('view-container'), loadArchives);
-  downloadUI = new DownloadUI(stateService, apiService, uiManager);
+  downloadUI = new DownloadUI(stateService, downloadService, uiManager);
   uiManager.setDownloadUI(downloadUI);
-  await uiManager.loadViews();
+  await uiManager.viewManager.loadViews();
+  new SettingsManager();
 
+  /**
+   * Loads the main archives from the Myrient service and populates the archives view.
+   * @async
+   * @returns {Promise<void>}
+   */
   async function loadArchives() {
     uiManager.showLoading('Loading Archives...');
     try {
-      const archives = await apiService.loadArchives();
+      const archives = await myrientDataService.loadArchives();
       uiManager.showView('archives');
       uiManager.populateList('list-archives', archives, (item) => {
         stateService.set('archive', item);
@@ -29,10 +48,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  /**
+   * Loads the directory list for the currently selected archive and populates the directories view.
+   * If the directory is empty, it directly calls handleDirectorySelect with the current archive.
+   * @async
+   * @returns {Promise<void>}
+   */
   async function loadDirectories() {
     uiManager.showLoading('Loading Directories...');
     try {
-      const directories = await apiService.loadDirectories();
+      const directories = await myrientDataService.loadDirectories();
       if (directories.length === 0) {
         const currentArchive = stateService.get('archive');
         handleDirectorySelect(currentArchive);
@@ -49,12 +74,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  /**
+   * Handles the selection of a directory or archive, triggering file scraping and filtering.
+   * Based on whether filterable tags are present, it either proceeds to results or shows a filtering wizard.
+   * @async
+   * @param {object} item The selected directory or archive item.
+   * @returns {Promise<void>}
+   */
   async function handleDirectorySelect(item) {
     stateService.set('directory', item);
     stateService.resetWizardState();
     uiManager.showLoading('Scanning files...');
     try {
-      const { hasSubdirectories } = await apiService.scrapeAndParseFiles();
+      const { hasSubdirectories } = await myrientDataService.scrapeAndParseFiles();
 
       if (hasSubdirectories) {
         const defaultFilters = {
@@ -64,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           dedupe_mode: 'all',
           priority_list: [],
         };
-        await apiService.runFilter(defaultFilters);
+        await filterService.runFilter(defaultFilters);
         uiManager.showView('results');
         downloadUI.populateResults(hasSubdirectories);
         stateService.set('wizardSkipped', true);
@@ -82,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           dedupe_mode: 'all',
           priority_list: [],
         };
-        await apiService.runFilter(defaultFilters);
+        await filterService.runFilter(defaultFilters);
         uiManager.showView('results');
         downloadUI.populateResults(hasSubdirectories);
         stateService.set('wizardSkipped', true);
@@ -99,7 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (userWantsToFilter === true) {
           uiManager.showView('wizard');
           stateService.set('wizardSkipped', false);
-          uiManager.setupWizard();
+          uiManager.wizardManager.setupWizard();
         } else if (userWantsToFilter === false) {
           uiManager.showLoading('Filtering files...');
           const defaultFilters = {
@@ -109,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             dedupe_mode: 'all',
             priority_list: [],
           };
-          await apiService.runFilter(defaultFilters);
+          await filterService.runFilter(defaultFilters);
           uiManager.showView('results');
           downloadUI.populateResults(hasSubdirectories);
           stateService.set('wizardSkipped', true);
@@ -142,6 +174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  /**
+   * Navigates back to either the directory list or the archive list based on the current state.
+   */
   function goBackToDirectoryOrArchiveList() {
     const archiveHref = stateService.get('archive').href;
     const directoryHref = stateService.get('directory').href;
@@ -165,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         goBackToDirectoryOrArchiveList();
       } else {
         uiManager.showView('wizard');
-        uiManager.setupWizard();
+        uiManager.wizardManager.setupWizard();
       }
     } else if (stateService.get('currentView') === 'wizard') {
       goBackToDirectoryOrArchiveList();
@@ -178,129 +213,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('minimize-btn').addEventListener('click', () => {
-    apiService.minimizeWindow();
+    windowService.minimizeWindow();
   });
   document.getElementById('maximize-restore-btn').addEventListener('click', () => {
-    apiService.maximizeRestoreWindow();
+    windowService.maximizeRestoreWindow();
   });
   document.getElementById('close-btn').addEventListener('click', () => {
-    apiService.closeWindow();
-  });
-
-  const settingsBtn = document.getElementById('settings-btn');
-  const settingsPanel = document.getElementById('settings-panel');
-  const settingsOverlay = document.getElementById('settings-overlay');
-  const closeSettingsBtn = document.getElementById('close-settings-btn');
-
-  function openSettings() {
-    settingsPanel.classList.remove('translate-x-full');
-    settingsOverlay.classList.add('open');
-    settingsBtn.classList.add('settings-open');
-  }
-
-  function closeSettings() {
-    settingsPanel.classList.add('translate-x-full');
-    settingsOverlay.classList.remove('open');
-    settingsBtn.classList.remove('settings-open');
-  }
-
-  settingsBtn.addEventListener('click', () => {
-    if (settingsPanel.classList.contains('translate-x-full')) {
-      openSettings();
-    } else {
-      closeSettings();
-    }
-  });
-
-  closeSettingsBtn.addEventListener('click', closeSettings);
-
-  settingsOverlay.addEventListener('click', closeSettings);
-
-  async function updateZoomDisplay() {
-    const zoomFactor = await apiService.getZoomFactor();
-    const zoomPercentage = Math.round(zoomFactor * 100);
-    document.getElementById('zoom-level-display').value = zoomPercentage;
-  }
-
-
-
-
-
-  document.getElementById('zoom-in-btn').addEventListener('click', async () => {
-    let zoomFactor = await apiService.getZoomFactor();
-    let newZoomPercentage = Math.round(zoomFactor * 100) + 10;
-    newZoomPercentage = Math.max(10, Math.min(400, newZoomPercentage));
-    apiService.setZoomFactor(newZoomPercentage / 100);
-    setTimeout(updateZoomDisplay, 100);
-  });
-
-  document.getElementById('zoom-out-btn').addEventListener('click', async () => {
-    let zoomFactor = await apiService.getZoomFactor();
-    let newZoomPercentage = Math.round(zoomFactor * 100) - 10;
-    newZoomPercentage = Math.max(10, Math.min(400, newZoomPercentage));
-    apiService.setZoomFactor(newZoomPercentage / 100);
-    setTimeout(updateZoomDisplay, 100);
-  });
-
-  document.getElementById('zoom-level-display').addEventListener('change', (e) => {
-    let newZoomPercentage = parseInt(e.target.value, 10);
-    if (isNaN(newZoomPercentage)) newZoomPercentage = 100;
-    newZoomPercentage = Math.max(10, Math.min(400, newZoomPercentage));
-    const newZoomFactor = newZoomPercentage / 100;
-    apiService.setZoomFactor(newZoomFactor);
-    updateZoomDisplay();
-  });
-
-  document.getElementById('zoom-reset-btn').addEventListener('click', () => {
-    apiService.zoomReset();
-    setTimeout(updateZoomDisplay, 100);
+    windowService.closeWindow();
   });
 
   document.getElementById('github-link').addEventListener('click', () => {
-    apiService.openExternal('https://github.com/bradrevans/myrient-downloader');
+    shellService.openExternal('https://github.com/bradrevans/myrient-downloader');
   });
 
   document.getElementById('kofi-link').addEventListener('click', () => {
-    apiService.openExternal('https://ko-fi.com/bradrevans');
+    shellService.openExternal('https://ko-fi.com/bradrevans');
   });
 
   document.getElementById('donate-link').addEventListener('click', () => {
-    apiService.openExternal('https://myrient.erista.me/donate/');
+    shellService.openExternal('https://myrient.erista.me/donate/');
   });
 
-  document.getElementById('check-for-updates-btn').addEventListener('click', async () => {
-    const updateStatusElement = document.getElementById('update-status');
-    updateStatusElement.textContent = 'Checking for updates...';
-    const result = await apiService.checkForUpdates();
-    if (result.error) {
-      updateStatusElement.textContent = result.error;
-    } else if (result.isUpdateAvailable) {
-      updateStatusElement.innerHTML = `Update available: <a href="#" id="release-link" class="text-accent-500 hover:underline">${result.latestVersion}</a>`;
-      document.getElementById('release-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        apiService.openExternal(result.releaseUrl);
-      });
-    } else {
-      updateStatusElement.textContent = 'You are on the latest version.';
-    }
-  });
-
+  /**
+   * Sets the application version in the UI.
+   * @async
+   * @returns {Promise<void>}
+   */
   async function setAppVersion() {
-    const version = await apiService.getAppVersion();
+    const version = await appService.getAppVersion();
     const versionElement = document.getElementById('app-version');
     if (versionElement) {
       versionElement.textContent = version;
     }
   }
 
+  /**
+   * Checks for application updates on startup and prompts the user if an update is available.
+   * @async
+   * @returns {Promise<void>}
+   */
   async function checkForUpdatesOnStartup() {
-    const result = await apiService.checkForUpdates();
+    const result = await appService.checkForUpdates();
     if (result.isUpdateAvailable) {
       const updateStatusElement = document.getElementById('update-status');
       updateStatusElement.innerHTML = `Update available: <a href="#" id="release-link" class="text-accent-500 hover:underline">${result.latestVersion}</a>`;
       document.getElementById('release-link').addEventListener('click', (e) => {
         e.preventDefault();
-        apiService.openExternal(result.releaseUrl);
+        shellService.openExternal(result.releaseUrl);
       });
 
       const userChoseDownload = await uiManager.showConfirmationModal(
@@ -312,14 +271,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       );
       if (userChoseDownload) {
-        apiService.openExternal(result.releaseUrl);
+        shellService.openExternal(result.releaseUrl);
       }
     }
   }
 
   loadArchives();
-  uiManager.updateBreadcrumbs();
-  updateZoomDisplay();
+  uiManager.breadcrumbManager.updateBreadcrumbs();
   setAppVersion();
   checkForUpdatesOnStartup();
 });

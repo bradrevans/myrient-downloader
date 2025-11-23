@@ -3,7 +3,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  getMyrientBaseUrl: () => ipcRenderer.invoke('get-myrient-base-url'),
   getMainArchives: () => ipcRenderer.invoke('get-main-archives'),
   getDirectoryList: (archiveUrl) => ipcRenderer.invoke('get-directory-list', archiveUrl),
   scrapeAndParseFiles: (pageUrl) => ipcRenderer.invoke('scrape-and-parse-files', pageUrl),
@@ -42,8 +41,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExtractionEnded: (callback) => ipcRenderer.on('extraction-ended', () => callback()),
   onExtractionProgress: (callback) => ipcRenderer.on('extraction-progress', (event, data) => callback(data)),
   onHideDownloadUi: (callback) => ipcRenderer.on('hide-download-ui', (event) => callback()),
-
-  formatBytes: (bytes, decimals) => ipcRenderer.invoke('format-bytes', bytes, decimals),
 
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
 });

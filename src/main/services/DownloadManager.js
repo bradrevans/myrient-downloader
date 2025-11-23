@@ -3,28 +3,33 @@ import DownloadService from './DownloadService.js';
 import { open } from 'yauzl-promise';
 import fs from 'fs';
 import path from 'path';
-import { formatBytes, calculateEta } from '../utils.js';
+import { formatBytes } from '../../shared/utils/formatters.js';
+import { calculateEta } from '../../shared/utils/time.js';
 
 /**
  * Manages the overall download and extraction process.
  * Orchestrates DownloadInfoService and DownloadService.
+ * @class
  */
 class DownloadManager {
   /**
    * Creates an instance of DownloadManager.
-   * @param {object} win The Electron BrowserWindow instance.
-   * @param {object} downloadConsole An instance of DownloadConsole for logging.
+   * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance.
+   * @param {ConsoleService} downloadConsole An instance of ConsoleService for logging.
+   * @param {DownloadInfoService} downloadInfoService An instance of DownloadInfoService.
+   * @param {DownloadService} downloadService An instance of DownloadService.
    */
-  constructor(win, downloadConsole) {
+  constructor(win, downloadConsole, downloadInfoService, downloadService) {
     this.win = win;
-    this.downloadInfoService = new DownloadInfoService();
     this.downloadConsole = downloadConsole;
-    this.downloadService = new DownloadService(downloadConsole);
+    this.downloadInfoService = downloadInfoService;
+    this.downloadService = downloadService;
     this.isCancelled = false;
   }
 
   /**
    * Cancels any ongoing download and information retrieval processes.
+   * @memberof DownloadManager
    */
   cancel() {
     this.isCancelled = true;
@@ -34,6 +39,7 @@ class DownloadManager {
 
   /**
    * Resets the download manager's state, allowing for new download operations.
+   * @memberof DownloadManager
    */
   reset() {
     this.isCancelled = false;
@@ -43,6 +49,7 @@ class DownloadManager {
 
   /**
    * Initiates the download process for a given set of files.
+   * @memberof DownloadManager
    * @param {string} baseUrl The base URL for the files to download.
    * @param {Array<object>} files An array of file objects to download.
    * @param {string} targetDir The target directory for the download.
@@ -50,6 +57,9 @@ class DownloadManager {
    * @param {boolean} maintainFolderStructure Whether to maintain the site's folder structure.
    * @param {boolean} extractAndDelete Whether to extract archives and delete them after download.
    * @param {boolean} extractPreviouslyDownloaded Whether to extract previously downloaded archives.
+   * @param {boolean} isThrottlingEnabled Whether download throttling is enabled.
+   * @param {number} throttleSpeed The speed for download throttling.
+   * @param {string} throttleUnit The unit for download throttling speed (e.g., 'kb', 'mb').
    * @returns {Promise<{success: boolean}>} A promise that resolves with a success status.
    */
   async startDownload(baseUrl, files, targetDir, createSubfolder, maintainFolderStructure, extractAndDelete, extractPreviouslyDownloaded, isThrottlingEnabled, throttleSpeed, throttleUnit) {
@@ -164,10 +174,11 @@ class DownloadManager {
 
   /**
    * Extracts downloaded archive files.
+   * @memberof DownloadManager
    * @param {Array<object>} downloadedFiles An array of file objects that have been downloaded, including a 'path' property.
    * @param {string} targetDir The target directory for extraction.
-   * @param {boolean} createSubfolder Whether to extract into subfolders based on archive name.
-   * @param {boolean} maintainFolderStructure Whether the site's folder structure was maintained during download.
+   * @param {boolean} [createSubfolder=false] Whether to extract into subfolders based on archive name.
+   * @param {boolean} [maintainFolderStructure=false] Whether the site's folder structure was maintained during download.
    * @returns {Promise<void>}
    */
   async extractFiles(downloadedFiles, targetDir, createSubfolder, maintainFolderStructure) {

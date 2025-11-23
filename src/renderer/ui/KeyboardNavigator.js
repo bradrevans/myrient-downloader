@@ -2,6 +2,12 @@ import { KEYS } from '../constants.js';
 
 /**
  * Handles keyboard navigation for a set of lists, including moving between lists and within a list.
+ * @class
+ * @property {Array<HTMLElement>} listContainers An array of DOM elements that contain the list items.
+ * @property {string} itemSelector A CSS selector to identify the navigable items within the containers.
+ * @property {HTMLElement} searchInput The search input element, used for focus management.
+ * @property {UIManager} uiManager The UIManager instance for interacting with UI-related actions.
+ * @property {Array<HTMLElement>} navigableElements An array of elements that can be navigated by keyboard in modals.
  */
 class KeyboardNavigator {
   /**
@@ -9,7 +15,8 @@ class KeyboardNavigator {
    * @param {Array<HTMLElement>|HTMLElement} listContainers A DOM element or an array of DOM elements that contain the list items.
    * @param {string} itemSelector A CSS selector to identify the navigable items within the containers.
    * @param {HTMLElement} searchInput The search input element, used for focus management.
-   * @param {object} uiManager The UIManager instance for interacting with UI-related actions.
+   * @param {UIManager} uiManager The UIManager instance for interacting with UI-related actions.
+   * @param {Array<HTMLElement>} [navigableElements=[]] An array of elements that can be navigated by keyboard in modals.
    */
   constructor(listContainers, itemSelector, searchInput, uiManager, navigableElements = []) {
     this.listContainers = Array.isArray(listContainers) ? listContainers : [listContainers];
@@ -21,6 +28,7 @@ class KeyboardNavigator {
 
   /**
    * Gets all visible items for a specific list container.
+   * @memberof KeyboardNavigator
    * @param {HTMLElement} container The list container to query.
    * @returns {Array<HTMLElement>} An array of visible items in the specified container.
    */
@@ -31,6 +39,7 @@ class KeyboardNavigator {
 
   /**
    * Finds the currently focused item among all managed list containers.
+   * @memberof KeyboardNavigator
    * @returns {HTMLElement|null} The currently focused item, or null if none is focused.
    */
   getFocusedItem() {
@@ -45,6 +54,7 @@ class KeyboardNavigator {
 
   /**
    * Handles keyboard events for navigation within a modal, specifically for left/right arrow keys.
+   * @memberof KeyboardNavigator
    * @param {KeyboardEvent} e The keyboard event.
    */
   handleModalKeyDown(e) {
@@ -68,6 +78,7 @@ class KeyboardNavigator {
 
   /**
    * Handles keyboard events for navigation.
+   * @memberof KeyboardNavigator
    * @param {KeyboardEvent} e The keyboard event.
    */
   handleKeyDown(e) {
@@ -131,6 +142,7 @@ class KeyboardNavigator {
 
   /**
    * Handles horizontal navigation between related include/exclude lists in the wizard.
+   * @memberof KeyboardNavigator
    * @param {number} focusedItemIndex The index of the currently focused item.
    * @param {HTMLElement} currentContainer The container where the event originated.
    * @param {'left'|'right'} direction The direction of navigation.
@@ -158,6 +170,7 @@ class KeyboardNavigator {
 
   /**
    * Finds and focuses an item in a target list, attempting to match by name or index.
+   * @memberof KeyboardNavigator
    * @param {string} targetListId The ID of the target list container.
    * @param {number} sourceIndex The index of the item in the source list.
    */
@@ -182,6 +195,7 @@ class KeyboardNavigator {
 
   /**
    * Handles the Enter key press event.
+   * @memberof KeyboardNavigator
    * @param {Array<HTMLElement>} visibleItems An array of currently visible and navigable items.
    * @param {number} focusedItemIndex The index of the currently focused item.
    * @param {HTMLElement} currentContainer The container where the event originated.
@@ -218,6 +232,7 @@ class KeyboardNavigator {
 
   /**
    * Handles the Arrow Down key press event for navigation.
+   * @memberof KeyboardNavigator
    * @param {Array<HTMLElement>} visibleItems An array of currently visible and navigable items.
    * @param {number} focusedItemIndex The index of the currently focused item.
    * @param {number} columnCount The number of columns in the grid layout.
@@ -239,6 +254,7 @@ class KeyboardNavigator {
 
   /**
    * Handles the Arrow Up key press event for navigation.
+   * @memberof KeyboardNavigator
    * @param {Array<HTMLElement>} visibleItems An array of currently visible and navigable items.
    * @param {number} focusedItemIndex The index of the currently focused item.
    * @param {number} columnCount The number of columns in the grid layout.
@@ -267,6 +283,7 @@ class KeyboardNavigator {
 
   /**
    * Handles the Arrow Right key press event for standard list navigation.
+   * @memberof KeyboardNavigator
    * @param {Array<HTMLElement>} visibleItems An array of currently visible and navigable items.
    * @param {number} focusedItemIndex The index of the currently focused item.
    */
@@ -279,6 +296,7 @@ class KeyboardNavigator {
 
   /**
    * Handles the Arrow Left key press event for standard list navigation.
+   * @memberof KeyboardNavigator
    * @param {Array<HTMLElement>} visibleItems An array of currently visible and navigable items.
    * @param {number} focusedItemIndex The index of the currently focused item.
    */

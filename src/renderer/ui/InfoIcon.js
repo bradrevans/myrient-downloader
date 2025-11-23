@@ -1,4 +1,17 @@
+/**
+ * Represents an information icon with an interactive tooltip.
+ * @class
+ * @property {string} tooltipText The text content to display in the tooltip.
+ * @property {HTMLElement} iconElement The HTML element for the info icon.
+ * @property {HTMLElement} tooltipElement The HTML element for the tooltip.
+ * @property {number|null} hideTimeout A timeout ID used to delay tooltip hiding.
+ * @property {boolean} isHovering Indicates if the mouse is currently hovering over the icon or tooltip.
+ */
 class InfoIcon {
+  /**
+   * Creates an instance of InfoIcon.
+   * @param {string} tooltipText The text content to display in the tooltip.
+   */
   constructor(tooltipText) {
     this.tooltipText = tooltipText;
     this.iconElement = this.createIconElement();
@@ -19,6 +32,11 @@ class InfoIcon {
     });
   }
 
+  /**
+   * Creates the HTML element for the info icon.
+   * @memberof InfoIcon
+   * @returns {HTMLElement} The created icon element.
+   */
   createIconElement() {
     const icon = document.createElement('span');
     icon.className = 'info-icon relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-accent-500 text-white text-xs font-bold cursor-help ml-2';
@@ -29,6 +47,11 @@ class InfoIcon {
     return icon;
   }
 
+  /**
+   * Creates the HTML element for the tooltip.
+   * @memberof InfoIcon
+   * @returns {HTMLElement} The created tooltip element.
+   */
   createTooltipElement() {
     const tooltip = document.createElement('div');
     tooltip.className = 'info-tooltip absolute z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-700 rounded-lg shadow-sm opacity-0 invisible transition-opacity duration-300 max-w-sm';
@@ -36,6 +59,11 @@ class InfoIcon {
     return tooltip;
   }
 
+  /**
+   * Handles the mouse enter or focus event for the icon and tooltip.
+   * Shows the tooltip after a delay.
+   * @memberof InfoIcon
+   */
   handleEnter() {
     clearTimeout(this.hideTimeout);
     this.isHovering = true;
@@ -47,6 +75,11 @@ class InfoIcon {
     this.tooltipElement.classList.add('visible', 'opacity-100');
   }
 
+  /**
+   * Handles the mouse leave or blur event for the icon and tooltip.
+   * Hides the tooltip after a short delay, unless the mouse re-enters.
+   * @memberof InfoIcon
+   */
   handleLeave() {
     this.isHovering = false;
     clearTimeout(this.hideTimeout);
@@ -58,6 +91,10 @@ class InfoIcon {
     }, 100);
   }
 
+  /**
+   * Positions the tooltip element relative to the icon element, ensuring it stays within viewport bounds.
+   * @memberof InfoIcon
+   */
   positionTooltip() {
     const iconRect = this.iconElement.getBoundingClientRect();
     const tooltipRect = this.tooltipElement.getBoundingClientRect();
@@ -80,6 +117,11 @@ class InfoIcon {
     this.tooltipElement.style.left = `${left}px`;
   }
 
+  /**
+   * Gets the HTML element of the info icon.
+   * @memberof InfoIcon
+   * @returns {HTMLElement} The icon element.
+   */
   get element() {
     return this.iconElement;
   }

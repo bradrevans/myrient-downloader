@@ -1,20 +1,21 @@
-import { formatTime } from '../utils.js';
+import { formatTime, formatBytes } from '../../shared/utils/formatters.js';
 import InfoIcon from './InfoIcon.js';
 import tooltipContent from '../tooltipContent.js';
 
 /**
  * Manages the user interface elements and interactions related to the download process.
+ * @class
  */
 export default class DownloadUI {
   /**
    * Creates an instance of DownloadUI.
-   * @param {object} stateService The StateService instance for managing application state.
-   * @param {object} apiService The ApiService instance for interacting with the main process.
-   * @param {object} uiManager The UIManager instance for managing overall UI.
+   * @param {StateService} stateService The StateService instance for managing application state.
+   * @param {DownloadService} downloadService The DownloadService instance for interacting with download logic.
+   * @param {UIManager} uiManager The UIManager instance for managing overall UI.
    */
-  constructor(stateService, apiService, uiManager) {
+  constructor(stateService, downloadService, uiManager) {
     this.stateService = stateService;
-    this.apiService = apiService;
+    this.downloadService = downloadService;
     this.uiManager = uiManager;
     this.downloadDirectoryStructure = null;
     this.resultsListChangeListener = null;
@@ -45,6 +46,7 @@ export default class DownloadUI {
 
   /**
    * Handles the click event for the cancel button, disabling it and logging a cancellation message.
+   * @memberof DownloadUI
    */
   handleCancelClick() {
     const elements = this._getElements();
@@ -54,6 +56,7 @@ export default class DownloadUI {
 
   /**
    * Retrieves and returns an object containing references to various DOM elements used in the download UI.
+   * @memberof DownloadUI
    * @returns {object} An object with keys as element IDs and values as the corresponding DOM elements.
    * @private
    */
@@ -102,6 +105,7 @@ export default class DownloadUI {
 
   /**
    * Retrieves all DOM elements related to the download options.
+   * @memberof DownloadUI
    * @returns {object} An object containing the download option elements.
    * @private
    */
@@ -127,6 +131,7 @@ export default class DownloadUI {
 
   /**
    * Enables or disables user interaction with the results list and associated controls.
+   * @memberof DownloadUI
    * @param {boolean} enabled - True to enable interaction, false to disable.
    * @private
    */
@@ -152,6 +157,7 @@ export default class DownloadUI {
 
   /**
    * Saves the current state of download options and disables them.
+   * @memberof DownloadUI
    * @private
    */
   _disableDownloadOptions() {
@@ -197,6 +203,7 @@ export default class DownloadUI {
 
   /**
    * Restores the saved state of the download options.
+   * @memberof DownloadUI
    * @private
    */
   _restoreDownloadOptions() {
@@ -253,6 +260,7 @@ export default class DownloadUI {
 
   /**
    * Updates the displayed count of selected results.
+   * @memberof DownloadUI
    */
   updateSelectedCount() {
     const elements = this._getElements();
@@ -263,6 +271,7 @@ export default class DownloadUI {
 
   /**
    * Updates the application's state with the currently selected download results based on UI checkboxes.
+   * @memberof DownloadUI
    * @private
    */
   _updateSelectionState() {
@@ -284,6 +293,7 @@ export default class DownloadUI {
 
   /**
    * Updates the text of the Scan & Download button based on extract checkbox state.
+   * @memberof DownloadUI
    */
   updateScanButtonText() {
     const elements = this._getElements();
@@ -300,6 +310,7 @@ export default class DownloadUI {
 
   /**
    * Updates the title (tooltip) of the Scan & Download button based on state.
+   * @memberof DownloadUI
    */
   updateScanButtonTitle() {
     const elements = this._getElements();
@@ -322,6 +333,7 @@ export default class DownloadUI {
 
   /**
    * Updates the enabled/disabled state, text, and tooltip of the Scan & Download button.
+   * @memberof DownloadUI
    */
   updateScanButtonState() {
     const elements = this._getElements();
@@ -339,6 +351,7 @@ export default class DownloadUI {
   /**
    * Populates the results list in the UI with the final filtered file list.
    * Sets up event listeners for checkbox changes and resets download-related UI elements.
+   * @memberof DownloadUI
    * @param {boolean} hasSubdirectories Indicates if the selected directory contains subdirectories.
    * @returns {Promise<void>}
    */
@@ -446,13 +459,14 @@ export default class DownloadUI {
     elements.downloadLog.innerHTML = '';
 
     if (!this.downloadDirectoryStructure) {
-      this.downloadDirectoryStructure = await this.apiService.getDownloadDirectoryStructureEnum();
+      this.downloadDirectoryStructure = await this.downloadService.getDownloadDirectoryStructureEnum();
     }
   }
 
   /**
    * Initiates the download process after performing necessary checks and UI updates.
    * Displays confirmation modals for directory structure mismatches.
+   * @memberof DownloadUI
    * @returns {Promise<void>}
    */
   async startDownload() {
@@ -469,7 +483,7 @@ export default class DownloadUI {
     const maintainFolderStructure = this.stateService.get('maintainFolderStructure');
     const isCreatingSubfolders = createSubfolder || maintainFolderStructure;
 
-    const currentStructure = await this.apiService.checkDownloadDirectoryStructure(downloadPath);
+    const currentStructure = await this.downloadService.checkDownloadDirectoryStructure(downloadPath);
 
     let shouldProceed = true;
     let confirmationMessage = '';
@@ -527,11 +541,12 @@ export default class DownloadUI {
     elements.extractionProgressBar.classList.add('hidden');
     elements.overallExtractionProgressBar.classList.add('hidden');
 
-    this.apiService.startDownload(this.stateService.get('selectedResults'));
+    this.downloadService.startDownload(this.stateService.get('selectedResults'));
   }
 
   /**
    * Appends a message to the download log display.
+   * @memberof DownloadUI
    * @param {string} message The message to log.
    */
   log(message) {
@@ -544,6 +559,7 @@ export default class DownloadUI {
 
   /**
    * Sets up all event listeners for UI interactions and IPC communications related to downloads.
+   * @memberof DownloadUI
    * @private
    */
   _setupEventListeners() {
@@ -679,7 +695,7 @@ export default class DownloadUI {
       elements.overallProgress.value = percent;
       const percentFixed = percent.toFixed(1);
       elements.overallProgressText.textContent =
-        `${await window.electronAPI.formatBytes(data.current)} / ${await window.electronAPI.formatBytes(data.total)} (${percentFixed}%)`;
+        `${await formatBytes(data.current)} / ${await formatBytes(data.total)} (${percentFixed}%)`;
 
       this.stateService.set('totalBytesDownloadedThisSession', data.current - data.skippedSize);
 
@@ -714,7 +730,7 @@ export default class DownloadUI {
       elements.fileProgress.value = percent;
       const percentFixed = percent.toFixed(0);
       elements.fileProgressSize.textContent =
-        `${await window.electronAPI.formatBytes(data.current)} / ${await window.electronAPI.formatBytes(data.total)} (${percentFixed}%)`;
+        `${await formatBytes(data.current)} / ${await formatBytes(data.total)} (${percentFixed}%)`;
     });
 
     window.electronAPI.onDownloadLog(message => {
@@ -753,7 +769,7 @@ export default class DownloadUI {
         const overallPercent = data.totalUncompressedSizeOfAllArchives > 0 ? (data.overallExtractedBytes / data.totalUncompressedSizeOfAllArchives) * 100 : 0;
         elements.overallExtractionProgress.value = overallPercent;
         const overallPercentFixed = overallPercent.toFixed(1);
-        elements.overallExtractionProgressText.textContent = `${await window.electronAPI.formatBytes(data.overallExtractedBytes)} / ${await window.electronAPI.formatBytes(data.totalUncompressedSizeOfAllArchives)} (${overallPercentFixed}%)`;
+        elements.overallExtractionProgressText.textContent = `${await formatBytes(data.overallExtractedBytes)} / ${await formatBytes(data.totalUncompressedSizeOfAllArchives)} (${overallPercentFixed}%)`;
         if (data.eta !== undefined) {
           elements.overallExtractionProgressTime.textContent = `Estimated Time Remaining: ${data.eta}`;
         } else {
@@ -767,7 +783,7 @@ export default class DownloadUI {
         elements.extractionProgress.value = filePercent;
         const filePercentFixed = filePercent.toFixed(0);
         elements.extractionProgressName.textContent = `${data.filename} (${data.overallExtractedEntryCount}/${data.totalEntriesOverall})`;
-        elements.extractionProgressText.textContent = `${await window.electronAPI.formatBytes(data.fileProgress)} / ${await window.electronAPI.formatBytes(data.fileTotal)} (${filePercentFixed}%)`;
+        elements.extractionProgressText.textContent = `${await formatBytes(data.fileProgress)} / ${await formatBytes(data.fileTotal)} (${filePercentFixed}%)`;
       }
     });
   }

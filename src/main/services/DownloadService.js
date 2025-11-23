@@ -1,18 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
-import { URL } from 'url';
 import axios from 'axios';
 import { Throttle } from '@kldzj/stream-throttle';
 import FileSystemService from './FileSystemService.js';
 
 /**
- * Service responsible for handling the actual downloading of files.
+ * Service responsible for handling the actual downloading of files,
+ * including managing progress updates, cancellation, resuming downloads,
+ * throttling, and error handling during the download process.
+ * @class
+ * @property {boolean} downloadCancelled - Flag to indicate if the current download operation has been cancelled.
+ * @property {https.Agent} httpAgent - An HTTP agent configured for keep-alive connections.
+ * @property {AbortController} abortController - An AbortController instance for signal-based cancellation of requests.
+ * @property {ConsoleService} downloadConsole - An instance of ConsoleService for logging download-related messages.
  */
 class DownloadService {
   /**
    * Creates an instance of DownloadService.
-   * @param {object} downloadConsole An instance of DownloadConsole for logging.
+   * @param {ConsoleService} downloadConsole An instance of ConsoleService for logging.
    */
   constructor(downloadConsole) {
     this.downloadCancelled = false;
@@ -22,7 +28,8 @@ class DownloadService {
   }
 
   /**
-   * Cancels any ongoing download operations.
+   * Cancels any ongoing download operations by setting the cancellation flag and aborting the current AbortController signal.
+   * @memberof DownloadService
    */
   cancel() {
     this.downloadCancelled = true;
@@ -31,7 +38,8 @@ class DownloadService {
 
   /**
    * Checks if the current download operation has been cancelled.
-   * @returns {boolean} True if cancelled, false otherwise.
+   * @memberof DownloadService
+   * @returns {boolean} True if the download has been cancelled, false otherwise.
    */
   isCancelled() {
     return this.downloadCancelled;
@@ -39,6 +47,8 @@ class DownloadService {
 
   /**
    * Resets the download service's state, allowing for new download operations.
+   * This involves resetting the cancellation flag and creating a new AbortController instance.
+   * @memberof DownloadService
    */
   reset() {
     this.downloadCancelled = false;
@@ -46,22 +56,33 @@ class DownloadService {
   }
 
   /**
-   * Downloads a list of files.
-   * @param {object} win The Electron BrowserWindow instance for sending progress updates.
-   * @param {string} baseUrl The base URL for the files.
-   * @param {Array<object>} files An array of file objects to download, potentially including a `relativePath` property for directory structure.
-   * @param {string} targetDir The target directory for downloads.
-   * @param {number} totalSize The total size of all files to be downloaded (including already downloaded parts).
-   * @param {number} [initialDownloadedSize=0] The size of files already downloaded or skipped initially.
-   * @param {boolean} [createSubfolder=false] Whether to create subfolders for each download.
-   * @param {boolean} [maintainFolderStructure=false] Whether to maintain the site's folder structure.
-   * @param {number} totalFilesOverall The total number of files initially considered for download.
-   * @param {number} initialSkippedFileCount The number of files initially skipped.
-   * @param {boolean} isThrottlingEnabled Whether to enable download throttling.
-   * @param {number} throttleSpeed The download speed limit in MB/s.
-   * @param {string} throttleUnit The unit for the download speed limit (KB/s or MB/s).
-   * @returns {Promise<{skippedFiles: Array<string>, downloadedFiles: Array<object>}>} A promise that resolves with an object containing any skipped files and successfully downloaded files.
-   * @throws {Error} If the download is cancelled between files or mid-file.
+   * Downloads a list of files sequentially, providing progress updates.
+   * This method handles file creation, partial downloads (resuming), throttling, and error recovery for individual files.
+   *
+   * @memberof DownloadService
+   * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance, used to send progress updates to the renderer process.
+   * @param {string} baseUrl The base URL from which the files are to be downloaded.
+   * @param {Array<object>} files An array of file objects to download. Each object should contain:
+   *   - `name` (string): The filename.
+   *   - `href` (string): The full URL of the file.
+   *   - `size` (number): The total size of the file in bytes.
+   *   - `downloadedBytes` (number, optional): The number of bytes already downloaded for this specific file, for resuming.
+   *   - `skip` (boolean, optional): If true, this file will be skipped.
+   * @param {string} targetDir The absolute path to the directory where the files will be saved.
+   * @param {number} totalSize The total expected size of all files combined (in bytes), used for overall progress calculation.
+   * @param {number} [initialDownloadedSize=0] The cumulative size of files that were already downloaded or skipped before starting this batch (in bytes).
+   * @param {boolean} [createSubfolder=false] If true, each file will be downloaded into a subfolder named after the file's base name within `targetDir`.
+   * @param {boolean} [maintainFolderStructure=false] If true, the remote folder structure indicated by `file.href` and `baseUrl` will be recreated within `targetDir`.
+   * @param {number} totalFilesOverall The total number of files originally selected for download, including those skipped or already processed.
+   * @param {number} initialSkippedFileCount The number of files that were skipped from the beginning due to various reasons (e.g., already exists).
+   * @param {boolean} [isThrottlingEnabled=false] If true, limits the download speed to `throttleSpeed`.
+   * @param {number} [throttleSpeed=10] The speed limit for throttling in the given `throttleUnit`.
+   * @param {'KB/s'|'MB/s'} [throttleUnit='MB/s'] The unit for `throttleSpeed`.
+   * @returns {Promise<{skippedFiles: Array<string>, downloadedFiles: Array<object>}>} A promise that resolves with an object containing:
+   *   - `skippedFiles` (Array<string>): An array of filenames that could not be downloaded due to errors.
+   *   - `downloadedFiles` (Array<{name: string, href: string, size: number, path: string}>): An array of file objects that were successfully downloaded, including their final saved path.
+   * @throws {Error} If the download is explicitly cancelled by the user, either between files ("CANCELLED_BETWEEN_FILES") or during a file transfer ("CANCELLED_MID_FILE").
+   *   Other errors during the download of a specific file will be caught and added to `skippedFiles`.
    */
   async downloadFiles(win, baseUrl, files, targetDir, totalSize, initialDownloadedSize = 0, createSubfolder = false, maintainFolderStructure = false, totalFilesOverall, initialSkippedFileCount, isThrottlingEnabled = false, throttleSpeed = 10, throttleUnit = 'MB/s') {
     const session = axios.create({

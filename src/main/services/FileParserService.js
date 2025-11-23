@@ -1,13 +1,22 @@
 import path from 'path';
 
 /**
- * Service responsible for parsing filenames and extracting relevant information.
+ * Service responsible for parsing filenames and extracting relevant information such as base name,
+ * tags, and revision numbers. It also categorizes tags for easier filtering and organization.
+ * @class
  */
 class FileParserService {
   /**
    * Parses a given filename to extract its base name, tags, and revision.
+   * @memberof FileParserService
    * @param {string} filename The full filename to parse (e.g., "Game Name (USA) (Rev 1).zip").
-   * @returns {{name_raw: string, base_name: string, tags: Array<string>, revision: number}} An object containing the parsed information.
+   * @returns {{name_raw: string, base_name: string, tags: Array<string>, categorizedTags: object, revision: number}} An object containing the parsed information.
+   *   - `name_raw`: The original full filename.
+   *   - `base_name`: The extracted base name of the file (e.g., "Game Name").
+   *   - `tags`: An array of all tags found in the filename (e.g., ["USA", "Rev 1"]).
+   *   - `categorizedTags`: An object where keys are tag categories (e.g., "Region", "Language", "Other") and values are arrays of tags belonging to that category.
+   *   - `revision`: A numeric representation of the file's revision, where higher numbers indicate newer versions.
+   *                 Positive numbers for releases, negative for pre-releases (e.g., beta, alpha, proto).
    */
   parseFilename(filename) {
     const nameNoExt = path.parse(filename).name;
@@ -42,68 +51,79 @@ class FileParserService {
   }
 
   /**
-   * Parses the revision from a filename.
+   * Parses the revision from a filename without its extension.
    * The revision is parsed in a specific order of priority:
-   * 1. Numbered releases (e.g., v1.2.3, Rev 2)
-   * 2. Numbered Beta releases (e.g., Beta 2)
-   * 3. Simple Beta releases (e.g., Beta)
-   * 4. Numbered Alpha releases (e.g., Alpha 1)
-   * 5. Simple Alpha releases (e.g., Alpha)
-   * 6. Prototypes with a date (e.g., Proto 2022-12-25)
-   * 7. Prototypes without a date (e.g., Proto)
-   * @param {string} nameNoExt The filename without the extension.
-   * @returns {number} The parsed revision number. Higher numbers indicate higher revisions. Pre-release versions are negative.
+   * 1. Numbered releases (e.g., v1.2.3, Rev 2) - returns positive numbers (e.g., 1.002003, 2)
+   * 2. Numbered Beta releases (e.g., Beta 2) - returns negative numbers from -1 to -0.01 (e.g., -0.98)
+   * 3. Simple Beta releases (e.g., Beta) - returns -2
+   * 4. Numbered Alpha releases (e.g., Alpha 1) - returns negative numbers from -3 to -2.01 (e.g., -2.99)
+   * 5. Simple Alpha releases (e.g., Alpha) - returns -4
+   * 6. Prototypes with a date (e.g., Proto 2022-12-25) - returns negative numbers around -5 (e.g., -4.97...)
+   * 7. Prototypes without a date (e.g., Proto) - returns -6
+   *
    * @private
+   * @memberof FileParserService
+   * @param {string} nameNoExt The filename without the extension.
+   * @returns {number} The parsed revision number. Higher positive numbers indicate higher releases.
+   *                   Negative numbers indicate pre-releases, with a specific range for each type (Beta, Alpha, Proto).
    */
   _parseRevision(nameNoExt) {
     const lowerCaseName = nameNoExt.toLowerCase();
 
+    // Prioritize numbered releases (e.g., v1.2.3, Rev 2)
     const versionMatch = lowerCaseName.match(/(?:\(v|ver|version|rev|revision)\.?\s*([\d\.]+)\)/);
     if (versionMatch && versionMatch[1]) {
       const parts = versionMatch[1].split('.').map(p => parseInt(p, 10) || 0);
       let num = 0;
       if (parts.length > 0) num += parts[0];
-      if (parts.length > 1) num += parts[1] / 1000;
-      if (parts.length > 2) num += parts[2] / 1000000;
+      if (parts.length > 1) num += parts[1] / 1000; // Minor version
+      if (parts.length > 2) num += parts[2] / 1000000; // Patch version
       return num;
     }
 
+    // Numbered Beta releases (e.g., Beta 2)
     const betaNumMatch = lowerCaseName.match(/(?:\(beta)\s*(\d+)\)/);
     if (betaNumMatch && betaNumMatch[1]) {
       const num = parseInt(betaNumMatch[1], 10);
-      return -1 + num / 100;
+      return -1 + num / 100; // e.g., Beta 2 -> -1 + 0.02 = -0.98
     }
 
+    // Simple Beta releases (e.g., Beta)
     if (lowerCaseName.includes('(beta)')) {
       return -2;
     }
 
+    // Numbered Alpha releases (e.g., Alpha 1)
     const alphaNumMatch = lowerCaseName.match(/(?:\(alpha)\s*(\d+)\)/);
     if (alphaNumMatch && alphaNumMatch[1]) {
       const num = parseInt(alphaNumMatch[1], 10);
-      return -3 + num / 100;
+      return -3 + num / 100; // e.g., Alpha 1 -> -3 + 0.01 = -2.99
     }
 
+    // Simple Alpha releases (e.g., Alpha)
     if (lowerCaseName.includes('(alpha)')) {
       return -4;
     }
 
+    // Prototypes with a date (e.g., Proto 2022-12-25)
     if (lowerCaseName.includes('(proto)')) {
       const dateMatch = lowerCaseName.match(/(\d{4}-\d{2}-\d{2})/);
       if (dateMatch && dateMatch[1]) {
-        const dateAsNum = parseInt(dateMatch[1].replace(/-/g, ''), 10);
-        return -5 + dateAsNum / 100000000;
+        const dateAsNum = parseInt(dateMatch[1].replace(/-/g, ''), 10); // YYYYMMDD
+        return -5 + dateAsNum / 100000000; // e.g., Proto 2022-12-25 -> -5 + 20221225/100000000 = -4.97978775
       }
-      return -6;
+      return -6; // Simple Proto
     }
 
-    return 0.0;
+    return 0.0; // Default if no revision found
   }
 
   /**
-   * Categorizes a tag into a specific group.
-   * @param {string} tag The tag to categorize.
-   * @returns {string} The category of the tag.
+   * Categorizes a single tag into a predefined group (e.g., "Region", "Language", "Other").
+   * The categorization logic is based on keywords found within the tag.
+   * @memberof FileParserService
+   * @param {string} tag The tag string to categorize.
+   * @returns {string} The category of the tag (e.g., "Region", "Language", "Other").
    */
   categorizeTag(tag) {
     const trimmedTag = tag.trim();
@@ -114,14 +134,14 @@ class FileParserService {
     const regionKeywords = ['usa', 'japan', 'europe', 'world', 'asia', 'australia', 'brazil', 'canada', 'china', 'denmark', 'finland', 'france', 'germany', 'greece', 'hong kong', 'israel', 'italy', 'korea', 'netherlands', 'norway', 'poland', 'portugal', 'russia', 'spain', 'sweden', 'taiwan', 'uk', 'united kingdom'];
     const regionSet = new Set(regionKeywords);
     const regionCount = lowerParts.filter(p => regionSet.has(p)).length;
-    if (regionCount > 0 && (regionCount / parts.length) >= 0.5) {
+    if (regionCount > 0 && (regionCount / parts.length) >= 0.5) { // If at least 50% of sub-parts are region keywords
       return 'Region';
     }
 
     const langKeywords = ['en', 'ja', 'fr', 'de', 'es', 'it', 'nl', 'pt', 'sv', 'no', 'da', 'fi', 'zh', 'ko', 'pl', 'ru', 'he', 'ca', 'ar', 'tr', 'zh-hant', 'zh-hans'];
     const langSet = new Set(langKeywords);
     const langCount = lowerParts.filter(p => langSet.has(p)).length;
-    if (langCount > 0 && (langCount / parts.length) >= 0.5) {
+    if (langCount > 0 && (langCount / parts.length) >= 0.5) { // If at least 50% of sub-parts are language keywords
       return 'Language';
     }
 
@@ -130,8 +150,13 @@ class FileParserService {
 
   /**
    * Parses a list of file and directory objects to extract information for each and aggregates all unique tags from files.
-   * @param {Array<object>} items An array of file and directory objects, each with a `name`, `href`, and `type` property.
-   * @returns {{files: Array<object>, tags: object}} An object containing an array of parsed file/directory objects and an object of all unique tags found (from files), categorized.
+   * @memberof FileParserService
+   * @param {Array<{name: string, href: string, type: 'file'|'directory'}>} items An array of file and directory objects.
+   *   Each object should have at least `name` (string), `href` (string), and `type` ('file' or 'directory') properties.
+   * @returns {{files: Array<object>, tags: object}} An object containing:
+   *   - `files`: An array of parsed file/directory objects. For files, these include `name_raw`, `base_name`, `tags`, `categorizedTags`, `revision`, `href`, `type`.
+   *              For directories, they include `name_raw`, `base_name`, `href`, `type`, and default empty/zero values for other properties.
+   *   - `tags`: An object where keys are tag categories (e.g., "Region", "Language", "Other") and values are arrays of unique tags found across all parsed files in that category.
    */
   parseFiles(items) {
     const allParsedItems = [];
