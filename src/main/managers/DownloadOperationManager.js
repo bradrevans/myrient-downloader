@@ -17,7 +17,6 @@ class DownloadOperationManager {
   constructor(win, downloadManager) {
     this.win = win;
     this.downloadManager = downloadManager;
-    this.fileSystemService = new FileSystemService();
   }
 
   /**
@@ -43,7 +42,7 @@ class DownloadOperationManager {
    */
   async checkDownloadDirectoryStructure(downloadPath) {
     try {
-      const structure = await this.fileSystemService.checkDownloadDirectoryStructure(downloadPath);
+      const structure = await FileSystemService.checkDownloadDirectoryStructure(downloadPath);
       return { data: structure };
     } catch (e) {
       return { error: e.message };

@@ -133,7 +133,7 @@ class FileSystemService {
    *   Possible values are `DOWNLOAD_DIRECTORY_STRUCTURE.EMPTY`, `FLAT`, `SUBFOLDERS`, or `MIXED`.
    * @throws {Error} If an error occurs during file system access, other than the directory not existing (`ENOENT`).
    */
-  async checkDownloadDirectoryStructure(downloadPath) {
+  static async checkDownloadDirectoryStructure(downloadPath) {
     try {
       const entries = await fs.promises.readdir(downloadPath, { withFileTypes: true });
 

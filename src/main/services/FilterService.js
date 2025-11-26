@@ -8,7 +8,6 @@ class FilterService {
    * Applies a series of filters (tag, revision, deduplication) to a list of files.
    * @memberof FilterService
    * @param {Array<object>} allFiles The initial list of file objects to filter. Each file object should have at least `tags`, `base_name`, and `revision` properties.
-   * @param {Array<string>} allTags All available tags across all files (currently unused in this method, but passed through from manager).
    * @param {object} filters An object containing the filter criteria:
    *   - `include_tags` (Array<string>): Tags that files must possess.
    *   - `exclude_tags` (Array<string>): Tags that files must NOT possess.
@@ -17,7 +16,7 @@ class FilterService {
    *   - `priority_list` (Array<string>): Ordered list of tags for 'priority' deduplication.
    * @returns {Array<object>} The filtered list of file objects.
    */
-  applyFilters(allFiles, allTags, filters) {
+  applyFilters(allFiles, filters) {
     const listAfterTags = this._applyTagFilter(allFiles, filters.include_tags, filters.exclude_tags);
     const listAfterRev = this._applyRevisionFilter(listAfterTags, filters);
     const finalList = this._applyDedupeFilter(listAfterRev, filters);

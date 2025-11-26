@@ -22,9 +22,9 @@ class FilterManager {
      * @param {object} filters An object containing the filter criteria.
      * @returns {object} An object containing either the filtered data (data) or an error message if the operation fails.
      */
-    filterFiles(allFiles, allTags, filters) {
+    filterFiles(allFiles, filters) {
         try {
-            return { data: this.filterService.applyFilters(allFiles, allTags, filters) };
+            return { data: this.filterService.applyFilters(allFiles, filters) };
         } catch (e) {
             return { error: e.message };
         }

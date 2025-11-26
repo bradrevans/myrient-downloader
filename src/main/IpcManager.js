@@ -3,7 +3,7 @@ import { MYRIENT_BASE_URL } from '../shared/constants/appConstants.js';
 import MyrientDataManager from './managers/MyrientDataManager.js';
 import FilterManager from './managers/FilterManager.js';
 import DownloadOperationManager from './managers/DownloadOperationManager.js';
-import FileManager from './managers/FileManager.js';
+
 import ShellManager from './managers/ShellManager.js';
 import WindowManager from './managers/WindowManager.js';
 import UpdateManager from './managers/UpdateManager.js';
@@ -38,7 +38,7 @@ class IpcManager {
                 
         this.myrientDataManager = new MyrientDataManager(myrientService);        this.filterManager = new FilterManager();
         this.downloadOperationManager = new DownloadOperationManager(win, this.downloadManager);
-        this.fileManager = new FileManager();
+
         this.shellManager = new ShellManager();
         this.windowManager = new WindowManager(win);
         this.updateManager = new UpdateManager(appVersion);
@@ -147,28 +147,7 @@ class IpcManager {
 
             return this.downloadOperationManager.startDownload(...args);
         });
-        /**
-         * Handles the 'delete-file' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with the result of the delete operation.
-         */
-        ipcMain.handle('delete-file', (event, ...args) => {
 
-            return this.fileManager.deleteFile(...args);
-        });
-        /**
-         * Handles the 'read-file' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with the content of the file.
-         */
-        ipcMain.handle('read-file', (event, ...args) => {
-
-            return this.fileManager.readFile(...args);
-        });
         /**
          * Handles the 'open-external' IPC message.
          * @memberof IpcManager

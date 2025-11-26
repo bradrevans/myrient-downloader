@@ -44,7 +44,7 @@ class ViewManager {
    * @param {object} eventManager The EventManager instance.
    * @param {object} searchManager The SearchManager instance.
    */
-  showView(viewId, breadcrumbManager, eventManager, searchManager) {
+  showView(viewId, breadcrumbManager, uiManager, searchManager) {
     document.querySelector('main').scrollTop = 0;
     if (this.views[viewId]) {
       if (this.currentView) {
@@ -73,7 +73,7 @@ class ViewManager {
       }
 
       breadcrumbManager.updateBreadcrumbs();
-      eventManager.addEventListeners(viewId);
+      uiManager.addEventListeners(viewId);
       searchManager.setupSearchEventListeners(viewId);
     }
   }

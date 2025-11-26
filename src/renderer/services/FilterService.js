@@ -23,7 +23,7 @@ class FilterService {
     if (isDefaultFilter) {
       stateService.set('finalFileList', stateService.get('allFiles'));
     } else {
-      const result = await window.electronAPI.filterFiles(stateService.get('allFiles'), stateService.get('allTags'), filters);
+      const result = await window.electronAPI.filterFiles(stateService.get('allFiles'), filters);
       if (result.error) {
         throw new Error(result.error);
       }
