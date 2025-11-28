@@ -82,6 +82,12 @@ class KeyboardNavigator {
    * @param {KeyboardEvent} e The keyboard event.
    */
   handleKeyDown(e) {
+    const activeElement = document.activeElement;
+
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') && activeElement !== this.searchInput) {
+        return;
+    }
+
     if (document.activeElement === this.searchInput && e.key === KEYS.ARROW_DOWN) {
       e.preventDefault();
       e.stopPropagation();
@@ -95,7 +101,6 @@ class KeyboardNavigator {
       return;
     }
 
-    const activeElement = document.activeElement;
     const currentContainer = this.listContainers.find(c => c.contains(activeElement));
 
     if (!currentContainer) {

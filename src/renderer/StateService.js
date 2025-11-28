@@ -78,6 +78,7 @@ class StateService {
       isThrottlingEnabled: false,
       throttleSpeed: 100,
       throttleUnit: 'KB/s',
+      savedFilters: [],
     };
   }
 

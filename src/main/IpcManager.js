@@ -3,6 +3,7 @@ import { MYRIENT_BASE_URL } from '../shared/constants/appConstants.js';
 import MyrientDataManager from './managers/MyrientDataManager.js';
 import FilterManager from './managers/FilterManager.js';
 import DownloadOperationManager from './managers/DownloadOperationManager.js';
+import FilterPersistenceManager from './managers/FilterPersistenceManager.js';
 
 import ShellManager from './managers/ShellManager.js';
 import WindowManager from './managers/WindowManager.js';
@@ -36,8 +37,10 @@ class IpcManager {
         const downloadService = new DownloadService(this.consoleService);
         this.downloadManager = new DownloadManager(win, this.consoleService, downloadInfoService, downloadService);
                 
-        this.myrientDataManager = new MyrientDataManager(myrientService);        this.filterManager = new FilterManager();
+        this.myrientDataManager = new MyrientDataManager(myrientService);
+        this.filterManager = new FilterManager();
         this.downloadOperationManager = new DownloadOperationManager(win, this.downloadManager);
+        this.filterPersistenceManager = new FilterPersistenceManager();
 
         this.shellManager = new ShellManager();
         this.windowManager = new WindowManager(win);
@@ -252,6 +255,22 @@ class IpcManager {
         ipcMain.handle('check-for-updates', () => {
 
             return this.updateManager.checkForUpdates();
+        });
+
+        ipcMain.handle('get-filters', () => {
+            return this.filterPersistenceManager.getFilters();
+        });
+        ipcMain.handle('save-filter', (event, filter) => {
+            return this.filterPersistenceManager.saveFilter(filter);
+        });
+        ipcMain.handle('delete-filter', (event, filterName) => {
+            return this.filterPersistenceManager.deleteFilter(filterName);
+        });
+        ipcMain.handle('import-filters', () => {
+            return this.filterPersistenceManager.importFilters();
+        });
+        ipcMain.handle('export-filters', () => {
+            return this.filterPersistenceManager.exportFilters();
         });
     }
 }

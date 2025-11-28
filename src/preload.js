@@ -39,4 +39,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExtractionProgress: (callback) => ipcRenderer.on('extraction-progress', (event, data) => callback(data)),
   onHideDownloadUi: (callback) => ipcRenderer.on('hide-download-ui', (event) => callback()),
 
+  getFilters: () => ipcRenderer.invoke('get-filters'),
+  saveFilter: (filter) => ipcRenderer.invoke('save-filter', filter),
+  deleteFilter: (filterName) => ipcRenderer.invoke('delete-filter', filterName),
+  importFilters: () => ipcRenderer.invoke('import-filters'),
+  exportFilters: () => ipcRenderer.invoke('export-filters'),
 });

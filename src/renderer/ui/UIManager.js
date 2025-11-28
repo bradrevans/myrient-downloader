@@ -124,6 +124,10 @@ class UIManager {
       console.warn(`Target element with ID '${targetElementId}' not found for info icon.`);
       return;
     }
+    if (targetElement.dataset.infoIconAdded) {
+      return;
+    }
+
     const text = tooltipContent[tooltipKey];
     if (!text) {
       console.warn(`Tooltip content for key '${tooltipKey}' not found.`);
@@ -131,6 +135,7 @@ class UIManager {
     }
 
     const infoIcon = new InfoIcon(text);
+    targetElement.dataset.infoIconAdded = 'true';
 
     const isHeading = /^H[1-6]$/i.test(targetElement.tagName);
 

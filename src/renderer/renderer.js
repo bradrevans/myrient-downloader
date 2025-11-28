@@ -82,8 +82,10 @@ document.addEventListener('DOMContentLoaded', async () => {
    * @returns {Promise<void>}
    */
   async function handleDirectorySelect(item) {
+    if (stateService.get('directory')?.href !== item.href) {
+      stateService.resetWizardState();
+    }
     stateService.set('directory', item);
-    stateService.resetWizardState();
     uiManager.showLoading('Scanning files...');
     try {
       const { hasSubdirectories } = await myrientDataService.scrapeAndParseFiles();
