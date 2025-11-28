@@ -376,8 +376,10 @@ class DownloadManager {
           } else {
             await fs.promises.mkdir(path.dirname(entryPath), { recursive: true });
             extractedFiles.push(entryPath);
+            
+            const partPath = `${entryPath}.part`;
             const readStream = await entry.openReadStream();
-            const writeStream = fs.createWriteStream(entryPath);
+            const writeStream = fs.createWriteStream(partPath);
             let bytesRead = 0;
             const totalBytes = entry.uncompressedSize;
             this.win.webContents.send('extraction-progress', {
@@ -430,24 +432,31 @@ class DownloadManager {
               readStream.pipe(writeStream);
               writeStream.on('finish', () => {
                 if (!this.isCancelled) {
-                  this.win.webContents.send('extraction-progress', {
-                    current: i,
-                    total: archiveFiles.length,
-                    filename: file.name,
-                    fileProgress: totalBytes,
-                    fileTotal: totalBytes,
-                    currentEntry: extractedEntryCount,
-                    totalEntries: totalEntries,
-                    overallExtractedBytes: overallExtractedBytes,
-                    totalUncompressedSizeOfAllArchives: totalUncompressedSizeOfAllArchives,
-                    overallExtractedEntryCount: overallExtractedEntryCount,
-                    totalEntriesOverall: totalEntriesOverall,
-                    formattedOverallExtractedBytes: formatBytes(overallExtractedBytes),
-                    formattedTotalUncompressedSizeOfAllArchives: formatBytes(totalUncompressedSizeOfAllArchives),
-                    eta: calculateEta(overallExtractedBytes, totalUncompressedSizeOfAllArchives, extractionStartTime)
+                  fs.rename(partPath, entryPath, (err) => {
+                    if (err) {
+                      return reject(err);
+                    }
+                    this.win.webContents.send('extraction-progress', {
+                      current: i,
+                      total: archiveFiles.length,
+                      filename: file.name,
+                      fileProgress: totalBytes,
+                      fileTotal: totalBytes,
+                      currentEntry: extractedEntryCount,
+                      totalEntries: totalEntries,
+                      overallExtractedBytes: overallExtractedBytes,
+                      totalUncompressedSizeOfAllArchives: totalUncompressedSizeOfAllArchives,
+                      overallExtractedEntryCount: overallExtractedEntryCount,
+                      totalEntriesOverall: totalEntriesOverall,
+                      formattedOverallExtractedBytes: formatBytes(overallExtractedBytes),
+                      formattedTotalUncompressedSizeOfAllArchives: formatBytes(totalUncompressedSizeOfAllArchives),
+                      eta: calculateEta(overallExtractedBytes, totalUncompressedSizeOfAllArchives, extractionStartTime)
+                    });
+                    resolve();
                   });
+                } else {
+                  resolve();
                 }
-                resolve();
               });
               writeStream.on('error', (err) => {
                 if (!this.isCancelled || err.message !== 'Extraction cancelled') {
@@ -479,6 +488,10 @@ class DownloadManager {
             try {
               if (fs.existsSync(extractedFile)) {
                 await fs.promises.unlink(extractedFile);
+              }
+              const partFile = `${extractedFile}.part`;
+              if (fs.existsSync(partFile)) {
+                await fs.promises.unlink(partFile);
               }
             } catch (cleanupErr) {
               this.downloadConsole.logError(`Failed to clean up ${extractedFile}: ${cleanupErr.message}`);

@@ -129,6 +129,7 @@ class DownloadInfoService {
       const fileUrl = fileInfo.href;
 
       const { targetPath, extractPath } = FileSystemService.calculatePaths(targetDir, fileInfo, { createSubfolder, maintainFolderStructure, baseUrl });
+      const partPath = `${targetPath}.part`;
 
       if (await FileSystemService.isAlreadyExtracted(extractPath, filename)) {
         fileInfo.skip = true;
@@ -168,6 +169,30 @@ class DownloadInfoService {
             fileInfo.downloadedBytes = localSize;
             skippedSize += localSize;
             filesToDownload.push(fileInfo);
+          } else {
+            fileInfo.skip = false;
+            filesToDownload.push(fileInfo);
+          }
+        } else if (fs.existsSync(partPath)) {
+          const localSize = fs.statSync(partPath).size;
+          if (remoteSize > 0 && localSize < remoteSize) {
+            fileInfo.skip = false;
+            fileInfo.downloadedBytes = localSize;
+            skippedSize += localSize;
+            filesToDownload.push(fileInfo);
+          } else if (remoteSize > 0 && localSize >= remoteSize) {
+            try {
+              fs.renameSync(partPath, targetPath);
+              fileInfo.skip = true;
+              fileInfo.skippedBecauseDownloaded = true;
+              fileInfo.path = targetPath;
+              skippedBecauseDownloadedCount++;
+              skippedSize += remoteSize;
+              skippedFiles.push(fileInfo);
+            } catch (renameErr) {
+              fileInfo.skip = false;
+              filesToDownload.push(fileInfo);
+            }
           } else {
             fileInfo.skip = false;
             filesToDownload.push(fileInfo);

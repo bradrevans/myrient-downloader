@@ -109,6 +109,7 @@ class DownloadService {
 
       const filename = fileInfo.name;
       const { targetPath } = FileSystemService.calculatePaths(targetDir, fileInfo, { createSubfolder, maintainFolderStructure, baseUrl });
+      const partPath = `${targetPath}.part`;
 
       const finalDir = path.dirname(targetPath);
       if (!fs.existsSync(finalDir)) {
@@ -140,7 +141,7 @@ class DownloadService {
           headers: headers
         });
 
-        const writer = fs.createWriteStream(targetPath, {
+        const writer = fs.createWriteStream(partPath, {
           highWaterMark: 1024 * 1024,
           flags: fileDownloaded > 0 ? 'a' : 'w'
         });
@@ -166,19 +167,19 @@ class DownloadService {
         await new Promise((resolve, reject) => {
           const cleanupAndReject = (errMessage) => {
             writer.close(() => {
-              if (fs.existsSync(targetPath)) {
+              if (fs.existsSync(partPath)) {
                 this.downloadConsole.log(`Cleaning up partial file: ${filename}`);
-                fs.unlink(targetPath, (unlinkErr) => {
+                fs.unlink(partPath, (unlinkErr) => {
                   if (unlinkErr) {
-                    console.error(`Failed to delete partial file: ${targetPath}`, unlinkErr);
+                    console.error(`Failed to delete partial file: ${partPath}`, unlinkErr);
                   }
                   const err = new Error(errMessage);
-                  err.partialFile = { path: targetPath, name: filename };
+                  err.partialFile = { path: partPath, name: filename };
                   reject(err);
                 });
               } else {
                 const err = new Error(errMessage);
-                err.partialFile = { path: targetPath, name: filename };
+                err.partialFile = { path: partPath, name: filename };
                 reject(err);
               }
             });
@@ -218,15 +219,20 @@ class DownloadService {
           });
 
           writer.on('finish', () => {
-            win.webContents.send('download-file-progress', {
-                name: filename,
-                current: fileSize,
-                total: fileSize,
-                currentFileIndex: initialSkippedFileCount + fileIndex + 1,
-                totalFilesToDownload: totalFilesOverall
+            fs.rename(partPath, targetPath, (err) => {
+              if (err) {
+                return reject(err);
+              }
+              win.webContents.send('download-file-progress', {
+                  name: filename,
+                  current: fileSize,
+                  total: fileSize,
+                  currentFileIndex: initialSkippedFileCount + fileIndex + 1,
+                  totalFilesToDownload: totalFilesOverall
+              });
+              downloadedFiles.push({ ...fileInfo, path: targetPath });
+              resolve();
             });
-            downloadedFiles.push({ ...fileInfo, path: targetPath });
-            resolve();
           });
           writer.on('error', (err) => {
             reject(err);
@@ -259,7 +265,7 @@ class DownloadService {
         });
 
         try {
-          if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+          if (fs.existsSync(partPath)) fs.unlinkSync(partPath);
         } catch (fsErr) {
         }
       }
