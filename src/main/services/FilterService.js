@@ -18,9 +18,35 @@ class FilterService {
    */
   applyFilters(allFiles, filters) {
     const listAfterTags = this._applyTagFilter(allFiles, filters.include_tags, filters.exclude_tags);
-    const listAfterRev = this._applyRevisionFilter(listAfterTags, filters);
+    const listAfterStrings = this._applyStringFilter(listAfterTags, filters.include_strings, filters.exclude_strings);
+    const listAfterRev = this._applyRevisionFilter(listAfterStrings, filters);
     const finalList = this._applyDedupeFilter(listAfterRev, filters);
     return finalList;
+  }
+
+  /**
+   * Applies include/exclude string filtering to a list of files.
+   * @private
+   * @memberof FilterService
+   * @param {Array<object>} fileList The list of file objects to filter.
+   * @param {Array<string>} includeStrings An array of strings; files must contain at least one of these if specified.
+   * @param {Array<string>} excludeStrings An array of strings; files must not contain any of these if specified.
+   * @returns {Array<object>} The filtered file list.
+   */
+  _applyStringFilter(fileList, includeStrings, excludeStrings) {
+    const include = includeStrings || [];
+    const exclude = excludeStrings || [];
+
+    if (include.length === 0 && exclude.length === 0) {
+      return fileList;
+    }
+
+    return fileList.filter(file => {
+      const name = file.name.toLowerCase();
+      const hasInclude = include.length === 0 || include.some(s => name.includes(s.toLowerCase()));
+      const hasExclude = exclude.length > 0 && exclude.some(s => name.includes(s.toLowerCase()));
+      return hasInclude && !hasExclude;
+    });
   }
 
   /**

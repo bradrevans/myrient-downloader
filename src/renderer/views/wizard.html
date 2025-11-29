@@ -29,7 +29,7 @@
           <div class="w-1/2">
             <h4 id="region-include-label" class="text-md font-semibold mb-2">Include</h4>
             <div id="wizard-tags-list-region-include"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-region-include-btn" class="btn btn-secondary">Select All (Displayed)</button>
               <button id="deselect-all-tags-region-include-btn" class="btn btn-secondary">Deselect All
@@ -39,7 +39,7 @@
           <div class="w-1/2">
             <h4 id="region-exclude-label" class="text-md font-semibold mb-2">Exclude</h4>
             <div id="wizard-tags-list-region-exclude"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-region-exclude-btn" class="btn btn-secondary">Select All (Displayed)</button>
               <button id="deselect-all-tags-region-exclude-btn" class="btn btn-secondary">Deselect All
@@ -59,7 +59,7 @@
           <div class="w-1/2">
             <h4 id="language-include-label" class="text-md font-semibold mb-2">Include</h4>
             <div id="wizard-tags-list-language-include"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-language-include-btn" class="btn btn-secondary">Select All
                 (Displayed)</button>
@@ -70,7 +70,7 @@
           <div class="w-1/2">
             <h4 id="language-exclude-label" class="text-md font-semibold mb-2">Exclude</h4>
             <div id="wizard-tags-list-language-exclude"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-language-exclude-btn" class="btn btn-secondary">Select All
                 (Displayed)</button>
@@ -91,7 +91,7 @@
           <div class="w-1/2">
             <h4 id="other-include-label" class="text-md font-semibold mb-2">Include</h4>
             <div id="wizard-tags-list-other-include"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-other-include-btn" class="btn btn-secondary">Select All (Displayed)</button>
               <button id="deselect-all-tags-other-include-btn" class="btn btn-secondary">Deselect All
@@ -101,12 +101,48 @@
           <div class="w-1/2">
             <h4 id="other-exclude-label" class="text-md font-semibold mb-2">Exclude</h4>
             <div id="wizard-tags-list-other-exclude"
-              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 mt-2 space-y-2"></div>
+              class="h-48 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2"></div>
             <div class="flex gap-2 mt-2">
               <button id="select-all-tags-other-exclude-btn" class="btn btn-secondary">Select All (Displayed)</button>
               <button id="deselect-all-tags-other-exclude-btn" class="btn btn-secondary">Deselect All
                 (Displayed)</button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 id="string-filtering-label" class="text-lg font-semibold mb-2">String Filtering</h3>
+      <div class="flex gap-4">
+        <div class="w-1/2">
+          <h4 id="string-include-label" class="text-md font-semibold mb-2">Include</h4>
+          <div class="flex items-stretch gap-2 mb-2">
+            <input type="text" id="string-include-input"
+              class="search-bar bg-neutral-800 border border-neutral-700 rounded-lg w-full"
+              placeholder="Add a string...">
+            <button id="string-include-add-btn" class="btn btn-primary">Add</button>
+          </div>
+          <div id="string-include-list"
+            class="h-40 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2">
+          </div>
+          <div class="flex gap-2 mt-2">
+            <button id="clear-string-include-list-btn" class="btn btn-secondary">Clear List</button>
+          </div>
+        </div>
+        <div class="w-1/2">
+          <h4 id="string-exclude-label" class="text-md font-semibold mb-2">Exclude</h4>
+          <div class="flex items-stretch gap-2 mb-2">
+            <input type="text" id="string-exclude-input"
+              class="search-bar bg-neutral-800 border border-neutral-700 rounded-lg w-full"
+              placeholder="Add a string...">
+            <button id="string-exclude-add-btn" class="btn btn-primary">Add</button>
+          </div>
+          <div id="string-exclude-list"
+            class="h-40 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded-lg p-2 space-y-2">
+          </div>
+          <div class="flex gap-2 mt-2">
+            <button id="clear-string-exclude-list-btn" class="btn btn-secondary">Clear List</button>
           </div>
         </div>
       </div>

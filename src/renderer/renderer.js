@@ -106,6 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const defaultFilters = {
           include_tags: [],
           exclude_tags: [],
+          include_strings: [],
+          exclude_strings: [],
           rev_mode: 'all',
           dedupe_mode: 'all',
           priority_list: [],
@@ -124,6 +126,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const defaultFilters = {
           include_tags: [],
           exclude_tags: [],
+          include_strings: [],
+          exclude_strings: [],
           rev_mode: 'all',
           dedupe_mode: 'all',
           priority_list: [],
@@ -151,6 +155,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const defaultFilters = {
             include_tags: [],
             exclude_tags: [],
+            include_strings: [],
+            exclude_strings: [],
             rev_mode: 'all',
             dedupe_mode: 'all',
             priority_list: [],

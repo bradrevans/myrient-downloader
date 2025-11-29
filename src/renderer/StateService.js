@@ -70,6 +70,8 @@ class StateService {
         language: [],
         other: [],
       },
+      includeStrings: [],
+      excludeStrings: [],
       priorityList: [],
       revisionMode: 'highest',
       dedupeMode: 'priority',
@@ -124,6 +126,8 @@ class StateService {
       language: [],
       other: [],
     };
+    this.state.includeStrings = [];
+    this.state.excludeStrings = [];
     this.state.priorityList = [];
     this.state.revisionMode = 'highest';
     this.state.dedupeMode = 'priority';
@@ -154,6 +158,20 @@ class StateService {
   set(key, value) {
     this.state[key] = value;
     this.notify(key, value);
+  }
+
+  /**
+   * Sets the list of files selected for download and updates the total download size.
+   * @memberof StateService
+   * @param {Array<object>} files The array of files selected for download.
+   */
+  setSelectedFilesForDownload(files) {
+    this.state.selectedFilesForDownload = files;
+    this.notify('selectedFilesForDownload', files);
+
+    const totalSize = files.reduce((sum, file) => sum + parseSize(file.size), 0);
+    this.state.totalSelectedDownloadSize = totalSize;
+    this.notify('totalSelectedDownloadSize', totalSize);
   }
 }
 

@@ -11,19 +11,21 @@ import { KEYS } from '../constants.js';
  */
 class KeyboardNavigator {
   /**
-   * Creates an instance of KeyboardNavigator.
    * @param {Array<HTMLElement>|HTMLElement} listContainers A DOM element or an array of DOM elements that contain the list items.
    * @param {string} itemSelector A CSS selector to identify the navigable items within the containers.
-   * @param {HTMLElement} searchInput The search input element, used for focus management.
+   * @param {Array<HTMLElement>|HTMLElement} searchInputs A DOM element or an array of DOM elements for the search inputs.
    * @param {UIManager} uiManager The UIManager instance for interacting with UI-related actions.
    * @param {Array<HTMLElement>} [navigableElements=[]] An array of elements that can be navigated by keyboard in modals.
+   * @param {object} [listToInputMap={}] A map associating list container IDs with their search input IDs.
    */
-  constructor(listContainers, itemSelector, searchInput, uiManager, navigableElements = []) {
+  constructor(listContainers, itemSelector, searchInputs, uiManager, navigableElements = [], listToInputMap = {}) {
     this.listContainers = Array.isArray(listContainers) ? listContainers : [listContainers];
     this.itemSelector = itemSelector;
-    this.searchInput = searchInput;
+    this.searchInputs = Array.isArray(searchInputs) ? searchInputs : [searchInputs];
+    this.searchInput = this.searchInputs[0]; // For backward compatibility
     this.uiManager = uiManager;
     this.navigableElements = navigableElements;
+    this.listToInputMap = listToInputMap;
   }
 
   /**
@@ -84,16 +86,20 @@ class KeyboardNavigator {
   handleKeyDown(e) {
     const activeElement = document.activeElement;
 
-    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') && activeElement !== this.searchInput) {
-        return;
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') && !this.searchInputs.includes(activeElement)) {
+      return;
     }
 
-    if (document.activeElement === this.searchInput && e.key === KEYS.ARROW_DOWN) {
+    const activeSearchInput = this.searchInputs.find(input => input === activeElement);
+    if (activeSearchInput && e.key === KEYS.ARROW_DOWN) {
       e.preventDefault();
       e.stopPropagation();
-      const firstContainer = this.listContainers[0];
-      if (firstContainer) {
-        const firstItem = this.getVisibleItemsInContainer(firstContainer)[0];
+
+      const targetListId = Object.keys(this.listToInputMap).find(listId => this.listToInputMap[listId] === activeSearchInput.id);
+      const container = targetListId ? this.listContainers.find(c => c.id === targetListId) : this.listContainers[0];
+
+      if (container) {
+        const firstItem = this.getVisibleItemsInContainer(container)[0];
         if (firstItem) {
           firstItem.focus();
         }
@@ -117,20 +123,21 @@ class KeyboardNavigator {
     const focusedItemIndex = visibleItems.findIndex(item => item === activeElement);
 
     const isWizardTagList = currentContainer.id.startsWith('wizard-tags-list-');
+    const isStringFilterList = currentContainer.id.startsWith('string-include-list') || currentContainer.id.startsWith('string-exclude-list');
 
     const keyActions = {
       [KEYS.ENTER]: () => this.handleEnterKey(visibleItems, focusedItemIndex, currentContainer),
       [KEYS.ARROW_DOWN]: () => this.handleArrowDownKey(visibleItems, focusedItemIndex, columnCount),
       [KEYS.ARROW_UP]: () => this.handleArrowUpKey(visibleItems, focusedItemIndex, columnCount),
       [KEYS.ARROW_RIGHT]: () => {
-        if (isWizardTagList) {
+        if (isWizardTagList || isStringFilterList) {
           this.handleHorizontalNavigation(focusedItemIndex, currentContainer, 'right');
         } else {
           this.handleArrowRightKey(visibleItems, focusedItemIndex);
         }
       },
       [KEYS.ARROW_LEFT]: () => {
-        if (isWizardTagList) {
+        if (isWizardTagList || isStringFilterList) {
           this.handleHorizontalNavigation(focusedItemIndex, currentContainer, 'left');
         } else {
           this.handleArrowLeftKey(visibleItems, focusedItemIndex);
@@ -155,22 +162,31 @@ class KeyboardNavigator {
   handleHorizontalNavigation(focusedItemIndex, currentContainer, direction) {
     if (focusedItemIndex === -1) return;
 
-    const isIncludeList = currentContainer.id.endsWith('-include');
-    const isExcludeList = currentContainer.id.endsWith('-exclude');
+    const isIncludeList = currentContainer.id.includes('-include');
+    const isExcludeList = currentContainer.id.includes('-exclude');
+
+    let targetListId;
 
     if (direction === 'right' && isIncludeList) {
-      const category = currentContainer.id.replace('wizard-tags-list-', '').replace('-include', '');
-      const targetListId = `wizard-tags-list-${category}-exclude`;
-      this.focusItemInTargetList(targetListId, focusedItemIndex);
+      targetListId = currentContainer.id.replace('-include', '-exclude');
     } else if (direction === 'left' && isExcludeList) {
-      const category = currentContainer.id.replace('wizard-tags-list-', '').replace('-exclude', '');
-      const targetListId = `wizard-tags-list-${category}-include`;
-      this.focusItemInTargetList(targetListId, focusedItemIndex);
+      targetListId = currentContainer.id.replace('-exclude', '-include');
     } else if (direction === 'left' && isIncludeList) {
-      if (this.searchInput) {
+      const searchInputId = this.listToInputMap[currentContainer.id];
+      if (searchInputId) {
+        const searchInput = this.searchInputs.find(input => input.id === searchInputId);
+        if (searchInput) {
+          searchInput.focus();
+        }
+      } else if (this.searchInput) {
         this.searchInput.focus();
       }
+      return;
+    } else {
+      return;
     }
+
+    this.focusItemInTargetList(targetListId, focusedItemIndex);
   }
 
   /**
@@ -227,6 +243,29 @@ class KeyboardNavigator {
           checkbox.dispatchEvent(new CustomEvent('change', { bubbles: true, detail: { tagName: item.dataset.name } }));
         }
         item.focus();
+      } else if (item.querySelector('.delete-string-btn')) {
+        const deleteBtn = item.querySelector('.delete-string-btn');
+        if (deleteBtn) {
+          deleteBtn.click();
+
+          setTimeout(() => {
+            const newVisibleItems = this.getVisibleItemsInContainer(currentContainer);
+            if (newVisibleItems.length > 0) {
+              const nextIndex = Math.min(focusedItemIndex, newVisibleItems.length - 1);
+              newVisibleItems[nextIndex].focus();
+            } else {
+              const searchInputId = this.listToInputMap[currentContainer.id];
+              if (searchInputId) {
+                const searchInput = this.searchInputs.find(input => input.id === searchInputId);
+                if (searchInput) {
+                  searchInput.focus();
+                }
+              } else if (this.searchInput) {
+                this.searchInput.focus();
+              }
+            }
+          }, 0);
+        }
       } else {
         item.click();
       }
@@ -266,7 +305,7 @@ class KeyboardNavigator {
    */
   handleArrowUpKey(visibleItems, focusedItemIndex, columnCount) {
     if (focusedItemIndex === -1) {
-      if (this.searchInput) {
+      if (this.searchInput) { // Maintain backward compatibility
         this.searchInput.focus();
       }
       return;
@@ -274,6 +313,15 @@ class KeyboardNavigator {
 
     let nextIndex = focusedItemIndex - columnCount;
     if (nextIndex < 0) {
+      const currentContainer = this.listContainers.find(c => c.contains(document.activeElement));
+      if (currentContainer && this.listToInputMap[currentContainer.id]) {
+        const searchInput = this.searchInputs.find(input => input.id === this.listToInputMap[currentContainer.id]);
+        if (searchInput) {
+          searchInput.focus();
+          return;
+        }
+      }
+
       if (this.searchInput) {
         this.searchInput.focus();
         return;

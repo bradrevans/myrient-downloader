@@ -171,6 +171,8 @@ class UIManager {
         const filters = {
           include_tags: allIncludeTags,
           exclude_tags: allExcludeTags,
+          include_strings: stateService.get('includeStrings'),
+          exclude_strings: stateService.get('excludeStrings'),
           rev_mode: document.querySelector('#filter-revision-mode .toggle-option.active').dataset.value,
           dedupe_mode: document.querySelector('#filter-dedupe-mode .toggle-option.active').dataset.value,
           priority_list: priorityList,

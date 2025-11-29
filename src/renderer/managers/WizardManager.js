@@ -1,6 +1,7 @@
 import stateService from '../StateService.js';
 import filterPersistenceService from '../services/FilterPersistenceService.js';
 import toastManager from './ToastManager.js';
+import KeyboardNavigator from '../ui/KeyboardNavigator.js';
 
 /**
  * Manages the wizard interface, handling setup of filters, tag categorization, and priority lists.
@@ -16,6 +17,45 @@ class WizardManager {
 
     stateService.subscribe('savedFilters', (updatedFilters) => {
       this._repopulatePresetsSelect(updatedFilters);
+    });
+
+    stateService.subscribe('includeStrings', () => {
+      this._renderStringList(this.stringIncludeList, stateService.get('includeStrings'), 'include');
+    });
+
+    stateService.subscribe('excludeStrings', () => {
+      this._renderStringList(this.stringExcludeList, stateService.get('excludeStrings'), 'exclude');
+    });
+  }
+
+  /**
+   * Renders a list of strings in the specified list element.
+   * @param {HTMLElement} listElement The DOM element to render the list into.
+   * @param {string[]} strings The array of strings to render.
+   * @param {string} type The type of list ('include' or 'exclude').
+   * @private
+   */
+  _renderStringList(listElement, strings, type) {
+    if (!listElement) return;
+    listElement.innerHTML = '';
+    if (strings.length === 0) {
+      listElement.innerHTML = `<div class="text-center text-gray-500">No strings added.</div>`;
+      return;
+    }
+    strings.forEach(string => {
+      const item = document.createElement('div');
+      item.className = 'string-filter-item';
+      item.tabIndex = 0;
+      item.dataset.name = string;
+      item.innerHTML = `
+        <span class="text-neutral-300">${string}</span>
+        <button class="delete-string-btn text-red-500 hover:text-red-700" data-string="${string}" data-type="${type}">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      `;
+      listElement.appendChild(item);
     });
   }
 
@@ -94,6 +134,9 @@ class WizardManager {
     this.populateTagCategory('language', allTags.Language || [], stateService.get('includeTags').language, stateService.get('excludeTags').language);
     this.populateTagCategory('other', allTags.Other || [], stateService.get('includeTags').other, stateService.get('excludeTags').other);
 
+    this._renderStringList(this.stringIncludeList, stateService.get('includeStrings'), 'include');
+    this._renderStringList(this.stringExcludeList, stateService.get('excludeStrings'), 'exclude');
+
     const priorityListEl = document.getElementById('priority-list');
     priorityListEl.innerHTML = '';
     stateService.get('priorityList').forEach(tag => {
@@ -120,6 +163,8 @@ class WizardManager {
         if (preset) {
           stateService.set('includeTags', JSON.parse(JSON.stringify(preset.filterSettings.include_tags)));
           stateService.set('excludeTags', JSON.parse(JSON.stringify(preset.filterSettings.exclude_tags)));
+          stateService.set('includeStrings', preset.filterSettings.include_strings || []);
+          stateService.set('excludeStrings', preset.filterSettings.exclude_strings || []);
           stateService.set('revisionMode', preset.filterSettings.rev_mode);
           stateService.set('dedupeMode', preset.filterSettings.dedupe_mode);
           stateService.set('priorityList', [...preset.filterSettings.priority_list]);
@@ -158,6 +203,8 @@ class WizardManager {
         filterSettings: {
           include_tags: stateService.get('includeTags'),
           exclude_tags: stateService.get('excludeTags'),
+          include_strings: stateService.get('includeStrings'),
+          exclude_strings: stateService.get('excludeStrings'),
           rev_mode: stateService.get('revisionMode'),
           dedupe_mode: stateService.get('dedupeMode'),
           priority_list: stateService.get('priorityList')
@@ -190,7 +237,56 @@ class WizardManager {
       document.getElementById(`select-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', true));
       document.getElementById(`deselect-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', false));
       document.getElementById(`select-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', true));
-      document.getElementById(`deselect-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', false));
+      document.getElementById(`select-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', false));
+    });
+
+    const addString = (type) => {
+      const input = type === 'include' ? this.stringIncludeInput : this.stringExcludeInput;
+      const value = input.value.trim();
+      if (value) {
+        const currentStrings = stateService.get(type === 'include' ? 'includeStrings' : 'excludeStrings');
+        if (!currentStrings.includes(value)) {
+          stateService.set(type === 'include' ? 'includeStrings' : 'excludeStrings', [...currentStrings, value]);
+        }
+        input.value = '';
+      }
+    };
+
+    this.stringIncludeAddBtn.addEventListener('click', () => addString('include'));
+    this.stringExcludeAddBtn.addEventListener('click', () => addString('exclude'));
+
+    this.stringIncludeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addString('include');
+      }
+    });
+
+    this.stringExcludeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addString('exclude');
+      }
+    });
+
+    const handleStringDelete = (e) => {
+      const target = e.target.closest('.delete-string-btn');
+      if (target) {
+        const stringToDelete = target.dataset.string;
+        const type = target.dataset.type;
+        const stateKey = type === 'include' ? 'includeStrings' : 'excludeStrings';
+        const currentStrings = stateService.get(stateKey);
+        stateService.set(stateKey, currentStrings.filter(s => s !== stringToDelete));
+      }
+    };
+
+    this.stringIncludeList.addEventListener('click', handleStringDelete);
+    this.stringExcludeList.addEventListener('click', handleStringDelete);
+
+    this.clearStringIncludeListBtn.addEventListener('click', () => {
+      stateService.set('includeStrings', []);
+    });
+
+    this.clearStringExcludeListBtn.addEventListener('click', () => {
+      stateService.set('excludeStrings', []);
     });
   }
 
@@ -201,6 +297,14 @@ class WizardManager {
     this.presetsSelect = document.getElementById('filter-presets-select');
     this.savePresetNameInput = document.getElementById('save-preset-name');
     this.savePresetBtn = document.getElementById('save-preset-btn');
+    this.stringIncludeInput = document.getElementById('string-include-input');
+    this.stringIncludeAddBtn = document.getElementById('string-include-add-btn');
+    this.stringIncludeList = document.getElementById('string-include-list');
+    this.stringExcludeInput = document.getElementById('string-exclude-input');
+    this.stringExcludeAddBtn = document.getElementById('string-exclude-add-btn');
+    this.stringExcludeList = document.getElementById('string-exclude-list');
+    this.clearStringIncludeListBtn = document.getElementById('clear-string-include-list-btn');
+    this.clearStringExcludeListBtn = document.getElementById('clear-string-exclude-list-btn');
 
     this._loadAndPopulatePresets();
     this._updateUIFromState();
@@ -211,6 +315,9 @@ class WizardManager {
     this.uiManager.addInfoIconToElement('region-filtering-label', 'regionFiltering');
     this.uiManager.addInfoIconToElement('language-filtering-label', 'languageFiltering');
     this.uiManager.addInfoIconToElement('other-filtering-label', 'otherFiltering');
+    this.uiManager.addInfoIconToElement('string-filtering-label', 'stringFiltering');
+    this.uiManager.addInfoIconToElement('string-include-label', 'stringIncludeInfo');
+    this.uiManager.addInfoIconToElement('string-exclude-label', 'stringExcludeInfo');
     this.uiManager.addInfoIconToElement('region-include-label', 'includeTags');
     this.uiManager.addInfoIconToElement('region-exclude-label', 'excludeTags');
     this.uiManager.addInfoIconToElement('language-include-label', 'includeTags');
@@ -220,6 +327,20 @@ class WizardManager {
     this.uiManager.addInfoIconToElement('filter-dedupe-mode-label', 'dedupeMode');
     this.uiManager.addInfoIconToElement('priority-list-label', 'priorityList');
     this.uiManager.addInfoIconToElement('priority-available-label', 'availableTags');
+
+    const stringFilterLists = [this.stringIncludeList, this.stringExcludeList];
+    const stringFilterInputs = [this.stringIncludeInput, this.stringExcludeInput];
+    const stringListToInputMap = {
+      'string-include-list': 'string-include-input',
+      'string-exclude-list': 'string-exclude-input',
+    };
+
+    const stringFilterNavigator = new KeyboardNavigator(stringFilterLists, '.string-filter-item', stringFilterInputs, this.uiManager, [], stringListToInputMap);
+
+    this.stringIncludeList.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
+    this.stringExcludeList.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
+    this.stringIncludeInput.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
+    this.stringExcludeInput.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
 
     this.uiManager.searchManager.refreshSearchPlaceholders();
   }

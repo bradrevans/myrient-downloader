@@ -16,6 +16,8 @@ class FilterService {
   async runFilter(filters) {
     const isDefaultFilter = filters.include_tags.length === 0 &&
       filters.exclude_tags.length === 0 &&
+      (filters.include_strings?.length ?? 0) === 0 &&
+      (filters.exclude_strings?.length ?? 0) === 0 &&
       filters.rev_mode === 'all' &&
       filters.dedupe_mode === 'all' &&
       filters.priority_list.length === 0;

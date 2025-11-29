@@ -7,6 +7,9 @@
  * @property {string} regionFiltering - Explanation for region filtering.
  * @property {string} languageFiltering - Explanation for language filtering.
  * @property {string} otherFiltering - Explanation for other filtering.
+ * @property {string} stringFiltering - Explanation for string filtering.
+ * @property {string} stringIncludeInfo - Explanation for string inclusion.
+ * @property {string} stringExcludeInfo - Explanation for string exclusion.
  * @property {string} includeTags - Explanation for include tags.
  * @property {string} excludeTags - Explanation for exclude tags.
  * @property {string} maintainSiteFolderStructure - Explanation for maintaining site folder structure.
@@ -33,6 +36,9 @@ const tooltipContent = {
   regionFiltering: "Filter ROMs based on their geographical region tags (e.g., USA, Europe, Japan). Select tags to include or exclude specific regions. Selecting nothing in any of the lists will default to including all tags.",
   languageFiltering: "Filter ROMs based on their language tags (e.g., En, Fr, De). Select tags to include or exclude specific languages.",
   otherFiltering: "Filter ROMs based on miscellaneous tags (e.g., Beta, Demo, Unlicensed). Select tags to include or exclude specific categories.",
+  stringFiltering: "Filter files by providing strings to include or exclude in the filename. Filenames must contain one of the inclusion strings (if any are provided) and must not contain any of the exclusion strings. If no inclusion strings are provided, all files will be considered for inclusion. Matching is case-insensitive.",
+  stringIncludeInfo: "Enter strings to include. Filenames must contain at least one of these strings. If no strings are provided here, all filenames will be considered for inclusion.",
+  stringExcludeInfo: "Enter strings to exclude. Filenames containing any of these strings will be excluded from the results.",
   includeTags: "Tags selected here will be INCLUDED in your filtered results. Only ROMs containing at least one of these tags will be shown.",
   excludeTags: "Tags selected here will be EXCLUDED from your filtered results. ROMs containing any of these tags will be removed from the results.",
   maintainSiteFolderStructure: "If checked, the folder structure of the site will be re-created on your local machine within the download directory.",
