@@ -23,256 +23,304 @@ import FileParserService from './services/FileParserService.js';
  * @class
  */
 class IpcManager {
+  /**
+   * Creates an instance of IpcManager.
+   * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance.
+   * @param {string} appVersion The current version of the application.
+   */
+  constructor(win, appVersion) {
+    this.win = win;
+    this.consoleService = new ConsoleService(win);
+    const fileParserService = new FileParserService();
+    const myrientService = new MyrientService(fileParserService);
+    const downloadInfoService = new DownloadInfoService(myrientService);
+    const downloadService = new DownloadService(this.consoleService);
+    this.downloadManager = new DownloadManager(win, this.consoleService, downloadInfoService, downloadService);
+
+    this.myrientDataManager = new MyrientDataManager(myrientService);
+    this.filterManager = new FilterManager();
+    this.downloadOperationManager = new DownloadOperationManager(win, this.downloadManager);
+    this.filterPersistenceManager = new FilterPersistenceManager();
+
+    this.shellManager = new ShellManager();
+    this.windowManager = new WindowManager(win);
+    this.updateManager = new UpdateManager(appVersion);
+  }
+
+  /**
+   * Sets up all IPC handlers for communication with the renderer process.
+   */
+  setupIpcHandlers() {
     /**
-     * Creates an instance of IpcManager.
-     * @param {Electron.BrowserWindow} win The Electron BrowserWindow instance.
-     * @param {string} appVersion The current version of the application.
+     * Handles the 'get-myrient-base-url' IPC call.
+     * @memberof IpcManager
+     * @returns {string} The base URL for Myrient.
      */
-    constructor(win, appVersion) {
-        this.win = win;
-        this.consoleService = new ConsoleService(win);
-        const fileParserService = new FileParserService();
-        const myrientService = new MyrientService(fileParserService);
-        const downloadInfoService = new DownloadInfoService(myrientService);
-        const downloadService = new DownloadService(this.consoleService);
-        this.downloadManager = new DownloadManager(win, this.consoleService, downloadInfoService, downloadService);
-                
-        this.myrientDataManager = new MyrientDataManager(myrientService);
-        this.filterManager = new FilterManager();
-        this.downloadOperationManager = new DownloadOperationManager(win, this.downloadManager);
-        this.filterPersistenceManager = new FilterPersistenceManager();
+    ipcMain.handle('get-myrient-base-url', () => {
 
-        this.shellManager = new ShellManager();
-        this.windowManager = new WindowManager(win);
-        this.updateManager = new UpdateManager(appVersion);
-    }
+      return MYRIENT_BASE_URL;
+    });
+    /**
+     * Handles the 'get-main-archives' IPC call.
+     * @memberof IpcManager
+     * @returns {Promise<Array<object>>} A promise that resolves with an array of main archives.
+     */
+    ipcMain.handle('get-main-archives', () => {
+
+      return this.myrientDataManager.getMainArchives();
+    });
+    /**
+     * Handles the 'get-directory-list' IPC call.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     * @returns {Promise<object>} A promise that resolves with the directory list.
+     */
+    ipcMain.handle('get-directory-list', (event, ...args) => {
+
+      return this.myrientDataManager.getDirectoryList(...args);
+    });
+    /**
+     * Handles the 'scrape-and-parse-files' IPC call.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     * @returns {Promise<object>} A promise that resolves with scraped and parsed file data.
+     */
+    ipcMain.handle('scrape-and-parse-files', (event, ...args) => {
+
+      return this.myrientDataManager.scrapeAndParseFiles(...args);
+    });
+    /**
+     * Handles the 'filter-files' IPC call.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     * @returns {Promise<object>} A promise that resolves with filtered file data.
+     */
+    ipcMain.handle('filter-files', (event, ...args) => {
+
+      return this.filterManager.filterFiles(...args);
+    });
+    /**
+     * Handles the 'get-download-directory' IPC call.
+     * @memberof IpcManager
+     * @returns {Promise<string|null>} A promise that resolves with the selected download directory or null if cancelled.
+     */
+    ipcMain.handle('get-download-directory', () => {
+
+      return this.downloadOperationManager.getDownloadDirectory();
+    });
+    /**
+     * Handles the 'check-download-directory-structure' IPC call.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     * @returns {Promise<object>} A promise that resolves with the download directory structure.
+     */
+    ipcMain.handle('check-download-directory-structure', (event, ...args) => {
+
+      return this.downloadOperationManager.checkDownloadDirectoryStructure(...args);
+    });
+    /**
+     * Handles the 'get-download-directory-structure-enum' IPC call.
+     * @memberof IpcManager
+     * @returns {Promise<object>} A promise that resolves with the download directory structure enum.
+     */
+    ipcMain.handle('get-download-directory-structure-enum', () => {
+
+      return this.downloadOperationManager.getDownloadDirectoryStructureEnum();
+    });
+    /**
+     * Handles the 'cancel-download' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('cancel-download', () => {
+
+      this.downloadOperationManager.cancelDownload();
+    });
+    /**
+     * Handles the 'start-download' IPC call.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     * @returns {Promise<object>} A promise that resolves when the download starts.
+     */
+    ipcMain.handle('start-download', (event, ...args) => {
+
+      return this.downloadOperationManager.startDownload(...args);
+    });
 
     /**
-     * Sets up all IPC handlers for communication with the renderer process.
+     * Handles the 'open-external' IPC message.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
      */
-    setupIpcHandlers() {
-        /**
-         * Handles the 'get-myrient-base-url' IPC call.
-         * @memberof IpcManager
-         * @returns {string} The base URL for Myrient.
-         */
-        ipcMain.handle('get-myrient-base-url', () => {
+    ipcMain.on('open-external', (event, ...args) => {
 
-            return MYRIENT_BASE_URL;
-        });
-        /**
-         * Handles the 'get-main-archives' IPC call.
-         * @memberof IpcManager
-         * @returns {Promise<Array<object>>} A promise that resolves with an array of main archives.
-         */
-        ipcMain.handle('get-main-archives', () => {
+      this.shellManager.openExternal(...args);
+    });
+    /**
+     * Handles the 'open-directory' IPC message.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     */
+    ipcMain.on('open-directory', (event, ...args) => {
 
-            return this.myrientDataManager.getMainArchives();
-        });
-        /**
-         * Handles the 'get-directory-list' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with the directory list.
-         */
-        ipcMain.handle('get-directory-list', (event, ...args) => {
+      this.shellManager.openDirectory(...args);
+    });
+    /**
+     * Handles the 'window-minimize' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('window-minimize', () => {
 
-            return this.myrientDataManager.getDirectoryList(...args);
-        });
-        /**
-         * Handles the 'scrape-and-parse-files' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with scraped and parsed file data.
-         */
-        ipcMain.handle('scrape-and-parse-files', (event, ...args) => {
+      this.windowManager.minimize();
+    });
+    /**
+     * Handles the 'window-maximize-restore' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('window-maximize-restore', () => {
 
-            return this.myrientDataManager.scrapeAndParseFiles(...args);
-        });
-        /**
-         * Handles the 'filter-files' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with filtered file data.
-         */
-        ipcMain.handle('filter-files', (event, ...args) => {
+      this.windowManager.maximizeRestore();
+    });
+    /**
+     * Handles the 'window-close' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('window-close', () => {
 
-            return this.filterManager.filterFiles(...args);
-        });
-        /**
-         * Handles the 'get-download-directory' IPC call.
-         * @memberof IpcManager
-         * @returns {Promise<string|null>} A promise that resolves with the selected download directory or null if cancelled.
-         */
-        ipcMain.handle('get-download-directory', () => {
+      this.windowManager.close();
+    });
+    /**
+     * Handles the 'zoom-in' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('zoom-in', () => {
 
-            return this.downloadOperationManager.getDownloadDirectory();
-        });
-        /**
-         * Handles the 'check-download-directory-structure' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves with the download directory structure.
-         */
-        ipcMain.handle('check-download-directory-structure', (event, ...args) => {
+      this.windowManager.zoomIn();
+    });
+    /**
+     * Handles the 'zoom-out' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('zoom-out', () => {
 
-            return this.downloadOperationManager.checkDownloadDirectoryStructure(...args);
-        });
-        /**
-         * Handles the 'get-download-directory-structure-enum' IPC call.
-         * @memberof IpcManager
-         * @returns {Promise<object>} A promise that resolves with the download directory structure enum.
-         */
-        ipcMain.handle('get-download-directory-structure-enum', () => {
+      this.windowManager.zoomOut();
+    });
+    /**
+     * Handles the 'zoom-reset' IPC message.
+     * @memberof IpcManager
+     */
+    ipcMain.on('zoom-reset', () => {
 
-            return this.downloadOperationManager.getDownloadDirectoryStructureEnum();
-        });
-        /**
-         * Handles the 'cancel-download' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('cancel-download', () => {
+      this.windowManager.zoomReset();
+    });
+    /**
+     * Handles the 'get-zoom-factor' IPC call.
+     * @memberof IpcManager
+     * @returns {number} The current zoom factor.
+     */
+    ipcMain.handle('get-zoom-factor', () => {
 
-            this.downloadOperationManager.cancelDownload();
-        });
-        /**
-         * Handles the 'start-download' IPC call.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         * @returns {Promise<object>} A promise that resolves when the download starts.
-         */
-        ipcMain.handle('start-download', (event, ...args) => {
+      return this.windowManager.getZoomFactor();
+    });
+    /**
+     * Handles the 'set-zoom-factor' IPC message.
+     * @memberof IpcManager
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<any>} args Arguments passed from the renderer process.
+     */
+    ipcMain.on('set-zoom-factor', (event, ...args) => {
 
-            return this.downloadOperationManager.startDownload(...args);
-        });
+      this.windowManager.setZoomFactor(...args);
+    });
+    /**
+     * Handles the 'get-app-version' IPC call.
+     * @memberof IpcManager
+     * @returns {string} The application version.
+     */
+    ipcMain.handle('get-app-version', () => {
 
-        /**
-         * Handles the 'open-external' IPC message.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         */
-        ipcMain.on('open-external', (event, ...args) => {
+      return this.updateManager.getAppVersion();
+    });
+    /**
+     * Handles the 'check-for-updates' IPC call.
+     * @memberof IpcManager
+     * @returns {Promise<object>} A promise that resolves with update information.
+     */
+    ipcMain.handle('check-for-updates', () => {
 
-            this.shellManager.openExternal(...args);
-        });
-        /**
-         * Handles the 'open-directory' IPC message.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         */
-        ipcMain.on('open-directory', (event, ...args) => {
+      return this.updateManager.checkForUpdates();
+    });
 
-            this.shellManager.openDirectory(...args);
-        });
-        /**
-         * Handles the 'window-minimize' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('window-minimize', () => {
+    /**
+     * Handles the 'get-filters' IPC call to retrieve all saved filters.
+     * @returns {Promise<object>} A promise that resolves with the saved filters.
+     */
+    ipcMain.handle('get-filters', () => {
+      return this.filterPersistenceManager.getFilters();
+    });
 
-            this.windowManager.minimize();
-        });
-        /**
-         * Handles the 'window-maximize-restore' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('window-maximize-restore', () => {
+    /**
+     * Handles the 'save-filter' IPC call to save a new filter.
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {object} filter The filter object to save.
+     * @returns {Promise<object>} A promise that resolves with the result of the save operation.
+     */
+    ipcMain.handle('save-filter', (event, filter) => {
+      return this.filterPersistenceManager.saveFilter(filter);
+    });
 
-            this.windowManager.maximizeRestore();
-        });
-        /**
-         * Handles the 'window-close' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('window-close', () => {
+    /**
+     * Handles the 'delete-filter' IPC call to delete a specific filter.
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {object} filterToDelete The filter object to delete.
+     * @returns {Promise<object>} A promise that resolves with the result of the delete operation.
+     */
+    ipcMain.handle('delete-filter', (event, filterToDelete) => {
+      return this.filterPersistenceManager.deleteFilter(filterToDelete);
+    });
 
-            this.windowManager.close();
-        });
-        /**
-         * Handles the 'zoom-in' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('zoom-in', () => {
+    /**
+     * Handles the 'delete-filters' IPC call to delete multiple filters.
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<object>} filtersToDelete An array of filter objects to delete.
+     * @returns {Promise<object>} A promise that resolves with the result of the delete operation.
+     */
+    ipcMain.handle('delete-filters', (event, filtersToDelete) => {
+      return this.filterPersistenceManager.deleteFilters(filtersToDelete);
+    });
 
-            this.windowManager.zoomIn();
-        });
-        /**
-         * Handles the 'zoom-out' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('zoom-out', () => {
+    /**
+     * Handles the 'import-filters' IPC call to import filters from a file.
+     * @returns {Promise<object>} A promise that resolves with the result of the import operation.
+     */
+    ipcMain.handle('import-filters', () => {
+      return this.filterPersistenceManager.importFilters();
+    });
 
-            this.windowManager.zoomOut();
-        });
-        /**
-         * Handles the 'zoom-reset' IPC message.
-         * @memberof IpcManager
-         */
-        ipcMain.on('zoom-reset', () => {
+    /**
+     * Handles the 'export-filters' IPC call to export all filters to a file.
+     * @returns {Promise<object>} A promise that resolves with the result of the export operation.
+     */
+    ipcMain.handle('export-filters', () => {
+      return this.filterPersistenceManager.exportFilters();
+    });
 
-            this.windowManager.zoomReset();
-        });
-        /**
-         * Handles the 'get-zoom-factor' IPC call.
-         * @memberof IpcManager
-         * @returns {number} The current zoom factor.
-         */
-        ipcMain.handle('get-zoom-factor', () => {
-
-            return this.windowManager.getZoomFactor();
-        });
-        /**
-         * Handles the 'set-zoom-factor' IPC message.
-         * @memberof IpcManager
-         * @param {Electron.IpcMainEvent} event The IPC event.
-         * @param {Array<any>} args Arguments passed from the renderer process.
-         */
-        ipcMain.on('set-zoom-factor', (event, ...args) => {
-
-            this.windowManager.setZoomFactor(...args);
-        });
-        /**
-         * Handles the 'get-app-version' IPC call.
-         * @memberof IpcManager
-         * @returns {string} The application version.
-         */
-        ipcMain.handle('get-app-version', () => {
-
-            return this.updateManager.getAppVersion();
-        });
-        /**
-         * Handles the 'check-for-updates' IPC call.
-         * @memberof IpcManager
-         * @returns {Promise<object>} A promise that resolves with update information.
-         */
-        ipcMain.handle('check-for-updates', () => {
-
-            return this.updateManager.checkForUpdates();
-        });
-
-        ipcMain.handle('get-filters', () => {
-            return this.filterPersistenceManager.getFilters();
-        });
-        ipcMain.handle('save-filter', (event, filter) => {
-            return this.filterPersistenceManager.saveFilter(filter);
-        });
-        ipcMain.handle('delete-filter', (event, filterName) => {
-            return this.filterPersistenceManager.deleteFilter(filterName);
-        });
-        ipcMain.handle('import-filters', () => {
-            return this.filterPersistenceManager.importFilters();
-        });
-        ipcMain.handle('export-filters', () => {
-            return this.filterPersistenceManager.exportFilters();
-        });
-    }
+    /**
+     * Handles the 'export-selected-filters' IPC call to export only selected filters.
+     * @param {Electron.IpcMainEvent} event The IPC event.
+     * @param {Array<object>} selectedFilters An array of filter objects to export.
+     * @returns {Promise<object>} A promise that resolves with the result of the export operation.
+     */
+    ipcMain.handle('export-selected-filters', (event, selectedFilters) => {
+      return this.filterPersistenceManager.exportSelectedFilters(selectedFilters);
+    });
+  }
 }
 
 export default IpcManager;

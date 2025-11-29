@@ -1,5 +1,6 @@
 import stateService from '../StateService.js';
 import filterPersistenceService from '../services/FilterPersistenceService.js';
+import toastManager from './ToastManager.js';
 
 /**
  * Manages the wizard interface, handling setup of filters, tag categorization, and priority lists.
@@ -12,30 +13,67 @@ class WizardManager {
    */
   constructor(uiManager) {
     this.uiManager = uiManager;
+
+    stateService.subscribe('savedFilters', (updatedFilters) => {
+      this._repopulatePresetsSelect(updatedFilters);
+    });
   }
 
+  /**
+   * Repopulates the filter presets dropdown with relevant filters for the current context.
+   * @param {Array<object>} filters - The list of all saved filters.
+   * @private
+   */
   _repopulatePresetsSelect(filters) {
-    this.presetsSelect.innerHTML = '<option value="">Select a preset...</option>';
+    if (!this.presetsSelect) {
+      return;
+    }
+
+    const previousSelection = this.presetsSelect.value;
     const currentArchiveHref = stateService.get('archive')?.href;
     const currentDirectoryHref = stateService.get('directory')?.href;
-    if (filters) {
-      filters.forEach(filter => {
-        if (filter.archiveHref === currentArchiveHref && filter.directoryHref === currentDirectoryHref) {
-          const option = document.createElement('option');
-          option.value = filter.name;
-          option.textContent = filter.name;
-          this.presetsSelect.appendChild(option);
+
+    const relevantFilters = filters ? filters.filter(f => f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref) : [];
+
+    if (relevantFilters.length === 0) {
+      this.presetsSelect.innerHTML = '<option value="">No saved presets...</option>';
+      this.presetsSelect.disabled = true;
+    } else {
+      this.presetsSelect.disabled = false;
+      this.presetsSelect.innerHTML = '<option value="">Select a preset...</option>';
+      let foundPreviousSelection = false;
+
+      relevantFilters.forEach(filter => {
+        const option = document.createElement('option');
+        option.value = filter.name;
+        option.textContent = filter.name;
+        this.presetsSelect.appendChild(option);
+        if (filter.name === previousSelection) {
+          foundPreviousSelection = true;
         }
       });
+
+      if (foundPreviousSelection) {
+        this.presetsSelect.value = previousSelection;
+      } else {
+        this.presetsSelect.value = '';
+      }
     }
   }
 
+  /**
+   * Loads filter presets from storage and updates the application state.
+   * @private
+   */
   async _loadAndPopulatePresets() {
     const filters = await filterPersistenceService.getFilters();
     stateService.set('savedFilters', filters);
-    this._repopulatePresetsSelect(filters);
   }
 
+  /**
+   * Updates the wizard UI to reflect the current state (e.g., toggles, tag lists).
+   * @private
+   */
   _updateUIFromState() {
     const revisionToggle = document.getElementById('filter-revision-mode');
     const revisionOptions = revisionToggle.querySelectorAll('.toggle-option');
@@ -69,17 +107,26 @@ class WizardManager {
     this.updatePriorityBuilderAvailableTags();
   }
 
+  /**
+   * Attaches event listeners to the wizard's UI elements.
+   * @private
+   */
   _attachEventListeners() {
-    this.loadPresetBtn.addEventListener('click', () => {
+    this.presetsSelect.addEventListener('change', () => {
       const selectedPresetName = this.presetsSelect.value;
-      if (!selectedPresetName) return;
-      const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName);
-      if (preset) {
-        stateService.set('includeTags', JSON.parse(JSON.stringify(preset.filterSettings.include_tags)));
-        stateService.set('excludeTags', JSON.parse(JSON.stringify(preset.filterSettings.exclude_tags)));
-        stateService.set('revisionMode', preset.filterSettings.rev_mode);
-        stateService.set('dedupeMode', preset.filterSettings.dedupe_mode);
-        stateService.set('priorityList', [...preset.filterSettings.priority_list]);
+      this.savePresetNameInput.value = selectedPresetName;
+      if (selectedPresetName) {
+        const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName);
+        if (preset) {
+          stateService.set('includeTags', JSON.parse(JSON.stringify(preset.filterSettings.include_tags)));
+          stateService.set('excludeTags', JSON.parse(JSON.stringify(preset.filterSettings.exclude_tags)));
+          stateService.set('revisionMode', preset.filterSettings.rev_mode);
+          stateService.set('dedupeMode', preset.filterSettings.dedupe_mode);
+          stateService.set('priorityList', [...preset.filterSettings.priority_list]);
+          this._updateUIFromState();
+        }
+      } else {
+        stateService.resetWizardState();
         this._updateUIFromState();
       }
     });
@@ -88,10 +135,13 @@ class WizardManager {
       const presetName = this.savePresetNameInput.value.trim();
       if (!presetName) return alert('Please enter a name for the preset.');
 
-      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName);
+      const currentArchiveHref = stateService.get('archive')?.href;
+      const currentDirectoryHref = stateService.get('directory')?.href;
+      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName && f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref);
+
       if (existingPreset) {
         const userConfirmed = await this.uiManager.showConfirmationModal(
-          `A preset named "${presetName}" already exists. Do you want to overwrite it?`,
+          `A preset named "${presetName}" already exists for this platform. Do you want to overwrite it?`,
           { confirmText: 'Overwrite' }
         );
         if (!userConfirmed) {
@@ -114,30 +164,10 @@ class WizardManager {
         }
       };
       await filterPersistenceService.saveFilter(newFilter);
+      toastManager.showToast(`Preset "${presetName}" saved.`);
       this.savePresetNameInput.value = '';
       await this._loadAndPopulatePresets();
       this.presetsSelect.value = presetName;
-    });
-
-    this.deletePresetBtn.addEventListener('click', async () => {
-      const selectedPresetName = this.presetsSelect.value;
-      if (!selectedPresetName || !confirm(`Are you sure you want to delete the preset "${selectedPresetName}"?`)) return;
-      await filterPersistenceService.deleteFilter(selectedPresetName);
-      await this._loadAndPopulatePresets();
-    });
-
-    this.importPresetsBtn.addEventListener('click', async () => {
-      const result = await filterPersistenceService.importFilters();
-      stateService.set('savedFilters', result.filters);
-      this._repopulatePresetsSelect(result.filters);
-      if (result.status === 'success') alert('Presets imported successfully.');
-      else if (result.status === 'error') alert(`Error importing presets: ${result.message}`);
-    });
-
-    this.exportPresetsBtn.addEventListener('click', async () => {
-      const result = await filterPersistenceService.exportFilters();
-      if (result.success) alert('Presets exported successfully.');
-      else alert(`Preset export failed: ${result.message}`);
     });
 
     document.getElementById('filter-revision-mode').querySelectorAll('.toggle-option').forEach(option => {
@@ -155,29 +185,28 @@ class WizardManager {
     });
 
     ['region', 'language', 'other'].forEach(category => {
-        document.getElementById(`wizard-tags-list-${category}-include`).addEventListener('change', this._handleTagClick.bind(this));
-        document.getElementById(`wizard-tags-list-${category}-exclude`).addEventListener('change', this._handleTagClick.bind(this));
-        document.getElementById(`select-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', true));
-        document.getElementById(`deselect-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', false));
-        document.getElementById(`select-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', true));
-        document.getElementById(`deselect-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', false));
+      document.getElementById(`wizard-tags-list-${category}-include`).addEventListener('change', this._handleTagClick.bind(this));
+      document.getElementById(`wizard-tags-list-${category}-exclude`).addEventListener('change', this._handleTagClick.bind(this));
+      document.getElementById(`select-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', true));
+      document.getElementById(`deselect-all-tags-${category}-include-btn`).addEventListener('click', () => this._massUpdateTags(category, 'include', false));
+      document.getElementById(`select-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', true));
+      document.getElementById(`deselect-all-tags-${category}-exclude-btn`).addEventListener('click', () => this._massUpdateTags(category, 'exclude', false));
     });
   }
 
+  /**
+   * Sets up the wizard by initializing UI elements, loading presets, and attaching event listeners.
+   */
   setupWizard() {
     this.presetsSelect = document.getElementById('filter-presets-select');
-    this.loadPresetBtn = document.getElementById('load-preset-btn');
-    this.deletePresetBtn = document.getElementById('delete-preset-btn');
     this.savePresetNameInput = document.getElementById('save-preset-name');
     this.savePresetBtn = document.getElementById('save-preset-btn');
-    this.importPresetsBtn = document.getElementById('import-presets-btn');
-    this.exportPresetsBtn = document.getElementById('export-presets-btn');
 
     this._loadAndPopulatePresets();
     this._updateUIFromState();
 
     this._attachEventListeners();
-    
+
     this.uiManager.addInfoIconToElement('filter-revision-mode-label', 'revisionMode');
     this.uiManager.addInfoIconToElement('region-filtering-label', 'regionFiltering');
     this.uiManager.addInfoIconToElement('language-filtering-label', 'languageFiltering');
@@ -195,6 +224,11 @@ class WizardManager {
     this.uiManager.searchManager.refreshSearchPlaceholders();
   }
 
+  /**
+   * Handles click events on tag checkboxes to update include/exclude state.
+   * @param {Event} e - The click event object.
+   * @private
+   */
   _handleTagClick(e) {
     if (e.target.type !== 'checkbox') return;
     const listContainer = e.currentTarget;
@@ -202,16 +236,16 @@ class WizardManager {
     const { name: tagName } = e.target.parentElement.dataset;
     const { tagType } = e.target.dataset;
     const { checked: isChecked } = e.target;
-    
+
     const includeTags = new Set(stateService.get('includeTags')[category]);
     const excludeTags = new Set(stateService.get('excludeTags')[category]);
-    
+
     if (tagType === 'include') {
-        if (isChecked) includeTags.add(tagName);
-        else includeTags.delete(tagName);
+      if (isChecked) includeTags.add(tagName);
+      else includeTags.delete(tagName);
     } else {
-        if (isChecked) excludeTags.add(tagName);
-        else excludeTags.delete(tagName);
+      if (isChecked) excludeTags.add(tagName);
+      else excludeTags.delete(tagName);
     }
 
     stateService.get('includeTags')[category] = Array.from(includeTags);
@@ -219,20 +253,27 @@ class WizardManager {
     this._updateUIFromState();
   }
 
+  /**
+   * Selects or deselects all tags in a given category and type (include/exclude).
+   * @param {string} category - The tag category (e.g., 'region').
+   * @param {string} type - The type of tag list ('include' or 'exclude').
+   * @param {boolean} shouldSelect - True to select all, false to deselect all.
+   * @private
+   */
   _massUpdateTags(category, type, shouldSelect) {
     const listEl = document.getElementById(`wizard-tags-list-${category}-${type}`);
     const includeTags = new Set(stateService.get('includeTags')[category]);
     const excludeTags = new Set(stateService.get('excludeTags')[category]);
 
     listEl.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
-        const tagName = checkbox.parentElement.dataset.name;
-        if (shouldSelect) {
-            if (type === 'include' && !excludeTags.has(tagName)) includeTags.add(tagName);
-            else if (type === 'exclude' && !includeTags.has(tagName)) excludeTags.add(tagName);
-        } else {
-            if (type === 'include') includeTags.delete(tagName);
-            else excludeTags.delete(tagName);
-        }
+      const tagName = checkbox.parentElement.dataset.name;
+      if (shouldSelect) {
+        if (type === 'include' && !excludeTags.has(tagName)) includeTags.add(tagName);
+        else if (type === 'exclude' && !includeTags.has(tagName)) excludeTags.add(tagName);
+      } else {
+        if (type === 'include') includeTags.delete(tagName);
+        else excludeTags.delete(tagName);
+      }
     });
 
     stateService.get('includeTags')[category] = Array.from(includeTags);
@@ -240,6 +281,13 @@ class WizardManager {
     this._updateUIFromState();
   }
 
+  /**
+   * Populates the UI with tag checkboxes for a specific category.
+   * @param {string} category - The category of tags to populate (e.g., 'region', 'language').
+   * @param {Array<string>} allCategoryTags - All available tags for this category.
+   * @param {Array<string>} currentIncludeTags - Tags currently set to be included.
+   * @param {Array<string>} currentExcludeTags - Tags currently set to be excluded.
+   */
   populateTagCategory(category, allCategoryTags, currentIncludeTags, currentExcludeTags) {
     const includeListEl = document.getElementById(`wizard-tags-list-${category}-include`);
     const excludeListEl = document.getElementById(`wizard-tags-list-${category}-exclude`);
@@ -278,7 +326,10 @@ class WizardManager {
       excludeListEl.appendChild(renderTagItem(tag, 'exclude'));
     });
   }
-  
+
+  /**
+   * Updates the placeholder message in the priority list if it's empty.
+   */
   updatePriorityPlaceholder() {
     const priorityList = document.getElementById('priority-list');
     if (!priorityList) return;
@@ -298,6 +349,10 @@ class WizardManager {
     }
   }
 
+  /**
+   * Updates the list of available tags for the priority builder, excluding those already in the priority list.
+   * Re-initializes the Sortable.js instances for the priority and available lists.
+   */
   updatePriorityBuilderAvailableTags() {
     let availableTags = new Set();
     Object.values(stateService.get('includeTags')).forEach(tags => tags.forEach(tag => availableTags.add(tag)));
@@ -327,24 +382,26 @@ class WizardManager {
 
     const searchInput = document.getElementById('search-priority-tags');
     if (searchInput) searchInput.dispatchEvent(new Event('input'));
-    
+
     const onPriorityChange = () => {
-        const updatedPriorityList = Array.from(priorityList.children).map(el => el.textContent);
-        stateService.set('priorityList', updatedPriorityList);
-        this.updatePriorityPlaceholder();
+      const updatedPriorityList = Array.from(priorityList.children)
+        .filter(el => !el.classList.contains('no-results'))
+        .map(el => el.textContent);
+      stateService.set('priorityList', updatedPriorityList);
+      this.updatePriorityPlaceholder();
     };
 
-    stateService.set('availableSortable', new Sortable(priorityAvailable, { 
-        group: 'shared', 
-        animation: 150, 
-        sort: false, 
-        onAdd: onPriorityChange 
+    stateService.set('availableSortable', new Sortable(priorityAvailable, {
+      group: 'shared',
+      animation: 150,
+      sort: false,
+      onAdd: onPriorityChange
     }));
-    stateService.set('prioritySortable', new Sortable(priorityList, { 
-        group: 'shared', 
-        animation: 150, 
-        onAdd: onPriorityChange,
-        onUpdate: onPriorityChange
+    stateService.set('prioritySortable', new Sortable(priorityList, {
+      group: 'shared',
+      animation: 150,
+      onAdd: onPriorityChange,
+      onUpdate: onPriorityChange
     }));
 
     this.updatePriorityPlaceholder();

@@ -10,9 +10,9 @@ import { parseSize } from '../shared/utils/formatters.js';
  * @property {{name: string, href: string}} state.archive The currently selected archive.
  * @property {{name: string, href: string}} state.directory The currently selected directory.
  * @property {Array<object>} state.allFiles All files found after scraping.
- * @property {Array<object>} state.allTags All unique tags found across all files, categorized.
  * @property {Array<object>} state.finalFileList The list of files after filtering.
- * @property {Array<object>} state.selectedResults The list of files selected for download.
+ * @property {Array<object>} state.selectedFilesForDownload The list of files selected for download.
+ * @property {number} state.totalSelectedDownloadSize The total size of all selected files for download.
  * @property {string|null} state.downloadDirectory The chosen download directory path.
  * @property {object|null} state.prioritySortable Sortable.js instance for priority list.
  * @property {object|null} state.availableSortable Sortable.js instance for available tags list.
@@ -37,12 +37,14 @@ import { parseSize } from '../shared/utils/formatters.js';
  * @property {boolean} state.isThrottlingEnabled Whether download throttling is enabled.
  * @property {number} state.throttleSpeed The speed for download throttling.
  * @property {string} state.throttleUnit The unit for download throttling speed.
+ * @property {Array<object>} state.savedFilters The list of saved filter presets.
  */
 class StateService {
   /**
    * Creates an instance of StateService and initializes the default state.
    */
   constructor() {
+    this._listeners = {};
     this.state = {
       currentView: 'archives',
       baseUrl: MYRIENT_BASE_URL,
@@ -82,7 +84,28 @@ class StateService {
     };
   }
 
+  /**
+   * Subscribes a callback function to changes in a specific state property.
+   * @param {string} key The state property to listen for changes on.
+   * @param {function(any): void} callback The function to call when the state property changes.
+   */
+  subscribe(key, callback) {
+    if (!this._listeners[key]) {
+      this._listeners[key] = [];
+    }
+    this._listeners[key].push(callback);
+  }
 
+  /**
+   * Notifies all subscribers of a specific state property that its value has changed.
+   * @param {string} key The state property that has changed.
+   * @param {any} newValue The new value of the state property.
+   */
+  notify(key, newValue) {
+    if (this._listeners[key]) {
+      this._listeners[key].forEach(callback => callback(newValue));
+    }
+  }
 
   /**
    * Resets the state related to the wizard filtering process.
@@ -130,15 +153,7 @@ class StateService {
    */
   set(key, value) {
     this.state[key] = value;
-  }
-
-  /**
-   * Sets the array of files selected by the user for download and calculates their total size.  
-   * @param {Array<object>} files The array of file objects selected for download. Each file object should have a 'size' property (in bytes).
-   */
-  setSelectedFilesForDownload(files) {
-    this.state.selectedFilesForDownload = files;
-    this.state.totalSelectedDownloadSize = files.reduce((acc, file) => acc + (parseSize(file.size) || 0), 0);
+    this.notify(key, value);
   }
 }
 

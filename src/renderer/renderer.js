@@ -1,3 +1,8 @@
+/**
+ * @file This file is the main entry point for the renderer process of the Electron application.
+ * It handles the initialization of the UI, sets up event listeners for user interactions,
+ * and coordinates with various services and managers to fetch data, manage state, and control application flow.
+ */
 import stateService from './StateService.js';
 import appService from './services/AppService.js';
 import windowService from './services/WindowService.js';
@@ -8,6 +13,8 @@ import filterService from './services/FilterService.js';
 import UIManager from './ui/UIManager.js';
 import DownloadUI from './ui/DownloadUI.js';
 import SettingsManager from './managers/SettingsManager.js';
+import PresetsManager from './managers/PresetsManager.js';
+
 
 /**
  * The instance of DownloadUI, initialized after DOM content is loaded.
@@ -21,11 +28,16 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Sets up UI managers, loads initial data, and registers event listeners.
    */
 
-  const uiManager = new UIManager(document.getElementById('view-container'), loadArchives);
+  const presetsManager = new PresetsManager(document.getElementById('presets-content'), stateService);
+  const uiManager = new UIManager(document.getElementById('view-container'), loadArchives, presetsManager);
+  presetsManager.setUIManager(uiManager);
+  presetsManager.addEventListeners();
+  await presetsManager.loadPresets();
   downloadUI = new DownloadUI(stateService, downloadService, uiManager);
   uiManager.setDownloadUI(downloadUI);
   await uiManager.viewManager.loadViews();
-  new SettingsManager();
+
+  const settingsManager = new SettingsManager();
 
   /**
    * Loads the main archives from the Myrient service and populates the archives view.
@@ -230,6 +242,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('kofi-link').addEventListener('click', () => {
     shellService.openExternal('https://ko-fi.com/bradrevans');
+  });
+
+  const presetsBtn = document.getElementById('presets-btn');
+  const presetsPanel = document.getElementById('presets-panel');
+  const presetsOverlay = document.getElementById('presets-overlay');
+  const closePresetsBtn = document.getElementById('close-presets-btn');
+
+  /**
+   * Opens the presets side panel.
+   */
+  function openPresets() {
+    presetsPanel.classList.remove('translate-x-full');
+    presetsOverlay.classList.add('open');
+    presetsBtn.classList.add('presets-open');
+    settingsManager.closeSettings();
+    presetsManager.loadPresets();
+    presetsManager.renderPresets();
+  }
+
+  /**
+   * Closes the presets side panel.
+   */
+  function closePresets() {
+    presetsPanel.classList.add('translate-x-full');
+    presetsOverlay.classList.remove('open');
+    presetsBtn.classList.remove('presets-open');
+  }
+
+  closePresetsBtn.addEventListener('click', closePresets);
+  presetsOverlay.addEventListener('click', closePresets);
+
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    if (settingsManager.settingsPanel.classList.contains('translate-x-full')) {
+      settingsManager.openSettings();
+      closePresets();
+    } else {
+      settingsManager.closeSettings();
+    }
+  });
+
+  document.getElementById('presets-btn').addEventListener('click', () => {
+    if (presetsPanel.classList.contains('translate-x-full')) {
+      openPresets();
+      settingsManager.closeSettings();
+    } else {
+      closePresets();
+    }
   });
 
   document.getElementById('donate-link').addEventListener('click', () => {

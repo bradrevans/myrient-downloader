@@ -28,9 +28,10 @@ class UIManager {
    * @param {HTMLElement} viewContainer The DOM element where views will be loaded.
    * @param {function(): void} loadArchivesCallback Callback function to load archives.
    */
-  constructor(viewContainer, loadArchivesCallback) {
+  constructor(viewContainer, loadArchivesCallback, presetsManager) {
     this.viewContainer = viewContainer;
     this.loadArchivesCallback = loadArchivesCallback;
+    this.presetsManager = presetsManager;
 
     this.viewManager = new ViewManager(viewContainer);
     this.modalManager = new ModalManager();

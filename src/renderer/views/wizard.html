@@ -5,20 +5,15 @@
         id="wizard-tag-count" class="font-bold">0</span> unique tags. Configure your filters.</p>
   </div>
 
-  <div id="filter-presets-loader" class="space-y-4 p-4 border border-neutral-700 rounded-lg mb-6">
+  <div>
     <h3 class="text-lg font-semibold mb-2">Filter Presets</h3>
-    <div class="flex items-end gap-2">
+    <div class="flex items-end gap-2 mb-6">
       <div class="flex-grow">
-        <label for="filter-presets-select" class="block text-sm font-medium text-gray-300 mb-1">Load Preset</label>
-        <select id="filter-presets-select" class="bg-neutral-800 border border-neutral-700 rounded-lg w-full p-2">
+        <select id="filter-presets-select"
+          class="search-bar bg-neutral-800 border border-neutral-700 rounded-lg w-full p-2">
           <option value="">Select a preset...</option>
         </select>
       </div>
-      <button id="load-preset-btn" class="btn btn-secondary">Load</button>
-      <button id="delete-preset-btn" class="btn btn-danger">Delete</button>
-    </div>
-    <div class="flex justify-start gap-2 mt-2">
-        <button id="import-presets-btn" class="btn btn-secondary">Import Presets</button>
     </div>
   </div>
 
@@ -177,22 +172,22 @@
       </div>
     </div>
 
-    <div id="filter-presets-saver" class="space-y-4 p-4 border border-neutral-700 rounded-lg mt-6">
+    <div class="space-y-4">
+      <div>
         <h3 class="text-lg font-semibold mb-2">Save Current Filter</h3>
-        <div class="flex items-end gap-2">
-            <div class="flex-grow">
-              <label for="save-preset-name" class="block text-sm font-medium text-gray-300 mb-1">Preset Name</label>
-              <input type="text" id="save-preset-name" class="bg-neutral-800 border border-neutral-700 rounded-lg w-full p-2" placeholder="Enter preset name...">
-            </div>
-            <button id="save-preset-btn" class="btn btn-primary">Save</button>
+        <div class="flex items-stretch gap-2">
+          <div class="flex-grow">
+            <input type="text" id="save-preset-name"
+              class="search-bar bg-neutral-800 border border-neutral-700 rounded-lg w-full"
+              placeholder="Enter preset name...">
+          </div>
+          <button id="save-preset-btn" class="btn btn-primary py-3">Save</button>
         </div>
-        <div class="flex justify-start gap-2 mt-2">
-            <button id="export-presets-btn" class="btn btn-secondary">Export Presets</button>
-        </div>
-    </div>
+      </div>
 
-    <div class="flex justify-end items-center">
-      <button id="wizard-run-btn" class="btn btn-primary">Apply Filters & Continue</button>
+      <div>
+        <button id="wizard-run-btn" class="btn btn-primary w-full">Apply Filters & Continue</button>
+      </div>
     </div>
   </div>
 </div>

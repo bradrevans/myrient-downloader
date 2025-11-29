@@ -158,12 +158,22 @@ input[type="number"] {
   @apply h-full w-12 text-xl text-white transition-colors duration-100 leading-none flex items-center justify-center;
 }
 
+.action-btn {
+  -webkit-app-region: no-drag;
+  @apply h-full px-2 text-xl text-white transition-colors duration-100 leading-none flex items-center justify-center;
+}
+
 .backdrop-blur-sm {
   backdrop-filter: blur(4px);
 }
 
 #settings-btn.settings-open,
 #settings-btn:hover {
+  @apply text-accent-500;
+}
+
+#presets-btn.presets-open,
+#presets-btn:hover {
   @apply text-accent-500;
 }
 
@@ -212,5 +222,33 @@ input[type="number"] {
 }
 
 .force-no-opacity[disabled] {
-    opacity: 1;
+  opacity: 1;
+}
+
+.toast {
+  @apply rounded-lg p-4 text-white shadow-lg transition-opacity duration-300 ease-in-out opacity-0;
+}
+
+.toast.show {
+  @apply opacity-100;
+}
+
+.toast-success {
+  @apply bg-success-600;
+}
+
+.toast-error {
+  @apply bg-danger-600;
+}
+
+.toast-close-btn {
+  @apply ml-4;
+}
+
+.toast-close-icon {
+  @apply h-5 w-5 cursor-pointer;
+}
+
+.toast-close-btn:hover {
+  @apply opacity-70;
 }
