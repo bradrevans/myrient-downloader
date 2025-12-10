@@ -56,6 +56,10 @@ body {
   @apply px-2 py-1 text-sm;
 }
 
+.btn-md {
+  @apply px-3 py-1;
+}
+
 .search-bar {
   @apply w-full px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500;
 }
