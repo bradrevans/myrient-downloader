@@ -1,7 +1,10 @@
 import https from 'https';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import pLimit from 'p-limit';
 import FileParserService from './FileParserService.js';
+
+const CONCURRENCY_LIMIT = 5;
 
 /**
  * Service responsible for interacting with the Myrient website to fetch directory listings and file information.
@@ -135,11 +138,18 @@ class MyrientService {
 
     allRawFileLinks = [...currentLevelFiles];
 
-    for (const dir of subdirectories) {
-      const subdirectoryUrl = new URL(dir.href, url).toString();
-      const subDirRawFileLinks = await this._scrapeRawFileLinks(subdirectoryUrl, baseUrl);
+    const limit = pLimit(CONCURRENCY_LIMIT);
+    const subdirectoryPromises = subdirectories.map(dir =>
+      limit(() => {
+        const subdirectoryUrl = new URL(dir.href, url).toString();
+        return this._scrapeRawFileLinks(subdirectoryUrl, baseUrl);
+      })
+    );
+
+    const results = await Promise.all(subdirectoryPromises);
+    results.forEach(subDirRawFileLinks => {
       allRawFileLinks = [...allRawFileLinks, ...subDirRawFileLinks];
-    }
+    });
 
     return allRawFileLinks;
   }
