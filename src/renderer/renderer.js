@@ -52,19 +52,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       const path = directoryStack.map(item => item.href).join('');
       const fullUrl = url ? new URL(path, stateService.get('baseUrl')).href : stateService.get('baseUrl');
 
-      const directories = await myrientDataService.loadDirectory(fullUrl);
-      if (directories.length === 0 && directoryStack.length > 0) {
+      const content = await myrientDataService.loadDirectory(fullUrl);
+      if (content.directories.length === 0 && directoryStack.length > 0) {
         stateService.set('downloadFromHere', false); // User drilled into a leaf directory
         handleDirectorySelect(directoryStack[directoryStack.length - 1]);
       } else {
         uiManager.showView('directories');
-        uiManager.populateList('list-directories', directories, (item) => {
+        uiManager.populateList('list-directories', content.directories, (item) => {
           stateService.set('downloadFromHere', false); // User is drilling down
           const currentStack = stateService.get('directoryStack') || [];
           stateService.setDirectoryStack([...currentStack, item]);
           const newPath = [...currentStack, item].map(i => i.href).join('');
           loadDirectory(newPath);
         });
+        uiManager.populateFiles('list-files', content.files);
 
         const downloadBtn = document.getElementById('download-from-here-btn');
         if (directoryStack.length >= 2) {

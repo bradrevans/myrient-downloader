@@ -85,8 +85,15 @@ class MyrientService {
    */
   async getDirectory(url) {
     const html = await this.getPage(url);
-    const links = this.parseLinks(html).filter(link => link.isDir);
-    return { data: links.sort((a, b) => a.name.localeCompare(b.name)) };
+    const links = this.parseLinks(html);
+    const directories = links.filter(link => link.isDir);
+    const files = links.filter(link => !link.isDir);
+    return {
+      data: {
+        directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
+        files: files.sort((a, b) => a.name.localeCompare(b.name))
+      }
+    };
   }
 
   /**

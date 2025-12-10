@@ -102,6 +102,53 @@ class UIManager {
   }
 
   /**
+   * Populates a list element with file items.
+   * @memberof UIManager
+   * @param {string} listId The ID of the HTML list element to populate.
+   * @param {Array<object>} items An array of file objects to display in the list. Each object should have `name` and `size` properties.
+   */
+  populateFiles(listId, items) {
+    const listEl = document.getElementById(listId);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    const headerContainer = document.getElementById('files-header-container');
+
+    if (items.length > 0) {
+      if (headerContainer) {
+        headerContainer.innerHTML = `
+          <hr class="border-neutral-700 my-4">
+          <div class="flex justify-between text-neutral-400 text-sm font-bold px-2">
+            <span>Filename</span>
+            <span>Size</span>
+          </div>
+        `;
+      }
+    } else {
+      if (headerContainer) {
+        headerContainer.innerHTML = '';
+      }
+    }
+
+    items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'file-item flex justify-between items-center p-2 rounded-md text-neutral-400 text-sm';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'truncate';
+      nameSpan.textContent = item.name;
+      nameSpan.title = item.name;
+
+      const sizeSpan = document.createElement('span');
+      sizeSpan.className = 'flex-shrink-0 ml-4';
+      sizeSpan.textContent = item.size;
+
+      el.appendChild(nameSpan);
+      el.appendChild(sizeSpan);
+      listEl.appendChild(el);
+    });
+  }
+
+  /**
    * Displays a confirmation modal using the ModalManager.
    * @memberof UIManager
    * @param {string} message The message to display in the modal.

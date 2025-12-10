@@ -9,7 +9,7 @@ class MyrientDataService {
    * Loads the directory list for the given URL. If no URL is provided, loads the root directories.
    * @memberof MyrientDataService
    * @param {string} [url] The URL to load the directory from.
-   * @returns {Promise<Array<{name: string, href: string, isDir: boolean}>>} A promise that resolves with an array of directory objects.
+   * @returns {Promise<{directories: Array<{name: string, href: string, isDir: boolean}>, files: Array<{name: string, href: string, isDir: boolean, size: string}>}>} A promise that resolves with an object containing `directories` and `files` arrays.
    * @throws {Error} If there is an error fetching the directory list.
    */
   async loadDirectory(url) {
