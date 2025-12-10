@@ -170,6 +170,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             uiManager.hideLoading();
           }, 0);
         } else { // Handles null (dismissed)
+          const fromDownloadFromHere = stateService.get('downloadFromHere');
+          if (fromDownloadFromHere) {
+            stateService.set('downloadFromHere', false); // Reset flag
+            uiManager.hideLoading();
+            return; // Stay on the current directory view
+          }
+
           const currentStack = stateService.get('directoryStack') || [];
           if (currentStack.length > 0) {
             const newStack = currentStack.slice(0, currentStack.length - 1);
