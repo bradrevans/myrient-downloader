@@ -169,6 +169,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             stateService.set('wizardSkipped', true);
             uiManager.hideLoading();
           }, 0);
+        } else { // Handles null (dismissed)
+          const currentStack = stateService.get('directoryStack') || [];
+          if (currentStack.length > 0) {
+            const newStack = currentStack.slice(0, currentStack.length - 1);
+            stateService.setDirectoryStack(newStack);
+            stateService.resetWizardState();
+            const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+            loadDirectory(url);
+          }
         }
       }
     } catch (e) {
