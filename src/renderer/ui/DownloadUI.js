@@ -394,8 +394,7 @@ export default class DownloadUI {
     elements.resultsFileCount.textContent = finalFileList.length;
     elements.resultsTotalCount.textContent = this.stateService.get('allFiles').length;
 
-    elements.resultsList.innerHTML = '';
-
+    const fragment = document.createDocumentFragment();
     finalFileList.forEach(item => {
       const el = document.createElement('label');
       el.className = 'flex items-center p-2 bg-neutral-900 rounded-md space-x-2 cursor-pointer border border-transparent hover:border-accent-500 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent-500 select-none';
@@ -403,15 +402,30 @@ export default class DownloadUI {
       el.title = item.name_raw;
       el.tabIndex = 0;
 
-      el.innerHTML = `
-        <input type="checkbox" class="h-4 w-4" checked>
-        <div class="flex-grow min-w-0 flex-shrink-1">
-          <span class="text-neutral-300 truncate block">${item.name_raw}</span>
-        </div>
-        <span class="text-neutral-400 ml-auto whitespace-nowrap">${formatBytes(parseSize(item.size))}</span>
-      `;
-      elements.resultsList.appendChild(el);
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'h-4 w-4';
+      checkbox.checked = true;
+      el.appendChild(checkbox);
+
+      const div = document.createElement('div');
+      div.className = 'flex-grow min-w-0 flex-shrink-1';
+      const spanName = document.createElement('span');
+      spanName.className = 'text-neutral-300 truncate block';
+      spanName.textContent = item.name_raw;
+      div.appendChild(spanName);
+      el.appendChild(div);
+
+      const spanSize = document.createElement('span');
+      spanSize.className = 'text-neutral-400 ml-auto whitespace-nowrap';
+      spanSize.textContent = formatBytes(parseSize(item.size));
+      el.appendChild(spanSize);
+
+      fragment.appendChild(el);
     });
+
+    elements.resultsList.innerHTML = '';
+    elements.resultsList.appendChild(fragment);
 
     elements.createSubfolderCheckbox.checked = false;
     elements.createSubfolderCheckbox.disabled = false;

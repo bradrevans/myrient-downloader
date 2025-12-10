@@ -388,24 +388,60 @@ class WizardManager {
    * @private
    */
   _massUpdateTags(category, type, shouldSelect) {
-    const listEl = document.getElementById(`wizard-tags-list-${category}-${type}`);
+    const includeListEl = document.getElementById(`wizard-tags-list-${category}-include`);
+    const excludeListEl = document.getElementById(`wizard-tags-list-${category}-exclude`);
+
     const includeTags = new Set(stateService.get('includeTags')[category]);
     const excludeTags = new Set(stateService.get('excludeTags')[category]);
 
-    listEl.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
+    const tagsToUpdate = type === 'include' ? includeTags : excludeTags;
+    const opposingTags = type === 'include' ? excludeTags : includeTags;
+
+    const listToUpdate = type === 'include' ? includeListEl : excludeListEl;
+    const otherList = type === 'include' ? excludeListEl : includeListEl;
+
+    // First, update the state sets based on the mass action
+    listToUpdate.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
       const tagName = checkbox.parentElement.dataset.name;
       if (shouldSelect) {
-        if (type === 'include' && !excludeTags.has(tagName)) includeTags.add(tagName);
-        else if (type === 'exclude' && !includeTags.has(tagName)) excludeTags.add(tagName);
+        if (!opposingTags.has(tagName)) {
+          tagsToUpdate.add(tagName);
+        }
       } else {
-        if (type === 'include') includeTags.delete(tagName);
-        else excludeTags.delete(tagName);
+        tagsToUpdate.delete(tagName);
       }
     });
 
     stateService.get('includeTags')[category] = Array.from(includeTags);
     stateService.get('excludeTags')[category] = Array.from(excludeTags);
-    this._updateUIFromState();
+
+    // Now, update the DOM for both lists based on the new state
+    const allCheckboxes = [
+      ...includeListEl.querySelectorAll('label input[type=checkbox]'),
+      ...excludeListEl.querySelectorAll('label input[type=checkbox]'),
+    ];
+
+    allCheckboxes.forEach(checkbox => {
+      const tagName = checkbox.parentElement.dataset.name;
+      const tagType = checkbox.dataset.tagType;
+      const isIncluded = includeTags.has(tagName);
+      const isExcluded = excludeTags.has(tagName);
+
+      checkbox.checked = (tagType === 'include' && isIncluded) || (tagType === 'exclude' && isExcluded);
+
+      const shouldBeDisabled = (tagType === 'include' && isExcluded) || (tagType === 'exclude' && isIncluded);
+      checkbox.disabled = shouldBeDisabled;
+      const label = checkbox.parentElement;
+      if (shouldBeDisabled) {
+        label.classList.add('opacity-50', 'cursor-not-allowed');
+        label.style.pointerEvents = 'none';
+      } else {
+        label.classList.remove('opacity-50', 'cursor-not-allowed');
+        label.style.pointerEvents = 'auto';
+      }
+    });
+
+    this.updatePriorityBuilderAvailableTags();
   }
 
   /**
