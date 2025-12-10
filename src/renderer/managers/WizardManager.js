@@ -70,10 +70,10 @@ class WizardManager {
     }
 
     const previousSelection = this.presetsSelect.value;
-    const currentArchiveHref = stateService.get('archive')?.href;
-    const currentDirectoryHref = stateService.get('directory')?.href;
+    const directoryStack = stateService.get('directoryStack') || [];
+    const fullPath = directoryStack.map(item => item.href).join('');
 
-    const relevantFilters = filters ? filters.filter(f => f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref) : [];
+    const relevantFilters = filters ? filters.filter(f => f.fullPath === fullPath) : [];
 
     if (relevantFilters.length === 0) {
       this.presetsSelect.innerHTML = '<option value="">No saved presets...</option>';
@@ -160,7 +160,9 @@ class WizardManager {
       const selectedPresetName = this.presetsSelect.value;
       this.savePresetNameInput.value = selectedPresetName;
       if (selectedPresetName) {
-        const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName);
+        const directoryStack = stateService.get('directoryStack') || [];
+        const fullPath = directoryStack.map(item => item.href).join('');
+        const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName && f.fullPath === fullPath);
         if (preset) {
           stateService.set('includeTags', JSON.parse(JSON.stringify(preset.filterSettings.include_tags)));
           stateService.set('excludeTags', JSON.parse(JSON.stringify(preset.filterSettings.exclude_tags)));
@@ -181,13 +183,15 @@ class WizardManager {
       const presetName = this.savePresetNameInput.value.trim();
       if (!presetName) return alert('Please enter a name for the preset.');
 
-      const currentArchiveHref = stateService.get('archive')?.href;
-      const currentDirectoryHref = stateService.get('directory')?.href;
-      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName && f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref);
+      const directoryStack = stateService.get('directoryStack') || [];
+      const fullPath = directoryStack.map(item => item.href).join('');
+      const pathDisplayName = directoryStack.map(item => item.name).join(' / ');
+
+      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName && f.fullPath === fullPath);
 
       if (existingPreset) {
         const userConfirmed = await this.uiManager.showConfirmationModal(
-          `A preset named "${presetName}" already exists for this platform. Do you want to overwrite it?`,
+          `A preset named "${presetName}" already exists for this path. Do you want to overwrite it?`,
           { confirmText: 'Overwrite' }
         );
         if (!userConfirmed) {
@@ -197,10 +201,8 @@ class WizardManager {
 
       const newFilter = {
         name: presetName,
-        archiveName: stateService.get('archive')?.name,
-        archiveHref: stateService.get('archive')?.href,
-        directoryName: stateService.get('directory')?.name,
-        directoryHref: stateService.get('directory')?.href,
+        fullPath: fullPath,
+        pathDisplayName: pathDisplayName,
         filterSettings: {
           include_tags: stateService.get('includeTags'),
           exclude_tags: stateService.get('excludeTags'),

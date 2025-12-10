@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         uiManager.populateList('list-directories', directories, (item) => {
           stateService.set('downloadFromHere', false); // User is drilling down
           const currentStack = stateService.get('directoryStack') || [];
-          stateService.set('directoryStack', [...currentStack, item]);
+          stateService.setDirectoryStack([...currentStack, item]);
           const newPath = [...currentStack, item].map(i => i.href).join('');
           loadDirectory(newPath);
         });
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const step = parseInt(e.target.dataset.step, 10);
       const currentStack = stateService.get('directoryStack') || [];
       const newStack = currentStack.slice(0, step);
-      stateService.set('directoryStack', newStack);
+      stateService.setDirectoryStack(newStack);
       stateService.resetWizardState();
       const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
       loadDirectory(url);
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         // SCENARIO A: Go up to the parent directory view
         const newStack = directoryStack.slice(0, directoryStack.length - 1);
-        stateService.set('directoryStack', newStack);
+        stateService.setDirectoryStack(newStack);
         stateService.resetWizardState();
         const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
         loadDirectory(url);
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (directoryStack.length > 0) {
       // Go up one level from a directory view
       const newStack = directoryStack.slice(0, directoryStack.length - 1);
-      stateService.set('directoryStack', newStack);
+      stateService.setDirectoryStack(newStack);
       stateService.resetWizardState();
       const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
       loadDirectory(url);

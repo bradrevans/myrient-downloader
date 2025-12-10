@@ -173,6 +173,20 @@ class StateService {
     this.state.totalSelectedDownloadSize = totalSize;
     this.notify('totalSelectedDownloadSize', totalSize);
   }
+
+  /**
+   * Sets the directory stack and automatically updates the archive and directory properties.
+   * @param {Array<{name: string, href: string}>} stack The new directory stack.
+   */
+  setDirectoryStack(stack) {
+    this.set('directoryStack', stack);
+
+    const archive = stack.length > 0 ? stack[0] : { name: '', href: '' };
+    const directory = stack.length > 0 ? stack[stack.length - 1] : { name: '', href: '' };
+
+    this.set('archive', archive);
+    this.set('directory', directory);
+  }
 }
 
 const stateService = new StateService();
