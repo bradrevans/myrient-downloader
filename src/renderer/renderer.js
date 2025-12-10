@@ -95,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Unlike before, we don't reset the wizard state here based on item href,
     // as the directoryStack is the source of truth for navigation state.
     // Resetting should happen when navigating via breadcrumbs or back button.
-    
     uiManager.showLoading('Scanning files...');
     try {
       const { hasSubdirectories } = await myrientDataService.scrapeAndParseFiles();
@@ -114,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         uiManager.showView('results');
         downloadUI.populateResults(hasSubdirectories);
         stateService.set('wizardSkipped', true);
+        uiManager.hideLoading();
         return;
       }
 
@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         uiManager.showView('results');
         downloadUI.populateResults(hasSubdirectories);
         stateService.set('wizardSkipped', true);
+        uiManager.hideLoading();
       } else {
         uiManager.hideLoading();
         const userWantsToFilter = await uiManager.showConfirmationModal(
@@ -145,34 +146,37 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         );
         if (userWantsToFilter === true) {
+          uiManager.showLoading('Preparing wizard...');
           uiManager.showView('wizard');
           stateService.set('wizardSkipped', false);
-          uiManager.wizardManager.setupWizard();
+          await uiManager.wizardManager.setupWizard();
         } else if (userWantsToFilter === false) {
-          uiManager.showLoading('Filtering files...');
-          const defaultFilters = {
-            include_tags: [],
-            exclude_tags: [],
-            include_strings: [],
-            exclude_strings: [],
-            rev_mode: 'all',
-            dedupe_mode: 'all',
-            priority_list: [],
-          };
-          await filterService.runFilter(defaultFilters);
-          uiManager.showView('results');
-          downloadUI.populateResults(hasSubdirectories);
-          stateService.set('wizardSkipped', true);
+          uiManager.showLoading('Preparing results...');
+          setTimeout(async () => {
+            const defaultFilters = {
+              include_tags: [],
+              exclude_tags: [],
+              include_strings: [],
+              exclude_strings: [],
+              rev_mode: 'all',
+              dedupe_mode: 'all',
+              priority_list: [],
+            };
+            await filterService.runFilter(defaultFilters);
+            uiManager.showView('results');
+            downloadUI.populateResults(hasSubdirectories);
+            stateService.set('wizardSkipped', true);
+            uiManager.hideLoading();
+          }, 0);
         }
       }
     } catch (e) {
+      uiManager.hideLoading();
       alert(`Error: ${e.message}`);
       // Go back to the previous directory view on error
       const currentStack = stateService.get('directoryStack') || [];
       const url = currentStack.length > 0 ? currentStack.map(i => i.href).join('') : undefined;
       loadDirectory(url);
-    } finally {
-      uiManager.hideLoading();
     }
   }
 

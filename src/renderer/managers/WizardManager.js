@@ -296,7 +296,7 @@ class WizardManager {
   /**
    * Sets up the wizard by initializing UI elements, loading presets, and attaching event listeners.
    */
-  setupWizard() {
+  async setupWizard() {
     this.presetsSelect = document.getElementById('filter-presets-select');
     this.savePresetNameInput = document.getElementById('save-preset-name');
     this.savePresetBtn = document.getElementById('save-preset-btn');
@@ -309,7 +309,7 @@ class WizardManager {
     this.clearStringIncludeListBtn = document.getElementById('clear-string-include-list-btn');
     this.clearStringExcludeListBtn = document.getElementById('clear-string-exclude-list-btn');
 
-    this._loadAndPopulatePresets();
+    await this._loadAndPopulatePresets();
     this._updateUIFromState();
 
     this._attachEventListeners();
@@ -348,6 +348,7 @@ class WizardManager {
     this.stringExcludeInput.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
 
     this.uiManager.searchManager.refreshSearchPlaceholders();
+    this.uiManager.hideLoading();
   }
 
   /**
