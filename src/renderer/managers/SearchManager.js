@@ -48,19 +48,12 @@ class SearchManager {
      * @property {string} [parentContainerId] The ID of the parent container for keyboard navigation in wizard views.
      */
     const searchConfigs = {
-      'archives': {
-        searchId: 'search-archives',
-        listId: 'list-archives',
-        itemSelector: '.list-item',
-        noResultsText: 'No archives found matching your search.',
-        noItemsText: 'No archives available.'
-      },
       'directories': {
         searchId: 'search-directories',
-        listId: 'list-directories',
-        itemSelector: '.list-item',
-        noResultsText: 'No directories found matching your search.',
-        noItemsText: 'No directories available.'
+        listIds: ['list-directories', 'list-files'], // Array of list IDs
+        itemSelector: '.list-item, .file-item', // Matches both directory and file items
+        noResultsText: 'No directories or files found matching your search.',
+        noItemsText: 'No directories or files available.'
       },
       'wizard': [
         {
@@ -125,19 +118,19 @@ class SearchManager {
         if (config.includeListId) {
           const includeListEl = document.getElementById(config.includeListId);
           if (includeListEl) {
-            this.searchInstances[config.includeListId] = new Search(config.searchId, config.includeListId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
+            this.searchInstances[config.includeListId] = new Search(config.searchId, [config.includeListId], config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
           }
         }
         if (config.excludeListId) {
           const excludeListEl = document.getElementById(config.excludeListId);
           if (excludeListEl) {
-            this.searchInstances[config.excludeListId] = new Search(config.searchId, config.excludeListId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
+            this.searchInstances[config.excludeListId] = new Search(config.searchId, [config.excludeListId], config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
           }
         }
         if (config.listId && !config.includeListId) {
           const listEl = document.getElementById(config.listId);
           if (listEl) {
-            this.searchInstances[config.listId] = new Search(config.searchId, config.listId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
+            this.searchInstances[config.listId] = new Search(config.searchId, [config.listId], config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
           }
         }
 
@@ -167,13 +160,17 @@ class SearchManager {
       });
     } else {
       (Array.isArray(configs) ? configs : [configs]).forEach(config => {
-        this.searchInstances[config.listId] = new Search(config.searchId, config.listId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
+        const instanceKey = config.listIds ? config.searchId : config.listId; // Key by searchId for multi-list, listId for single
+        const listContainerIdsToPass = config.listIds || [config.listId]; // Pass array of IDs
+        const headerContainerIdToPass = (viewId === 'directories' && config.listIds) ? 'files-header-container' : null;
+        
+        this.searchInstances[instanceKey] = new Search(config.searchId, listContainerIdsToPass, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`, headerContainerIdToPass);
 
-        const listContainer = document.getElementById(config.listId);
+        const listContainersForKeyboard = listContainerIdsToPass.map(id => document.getElementById(id)).filter(el => el !== null);
         const searchInput = document.getElementById(config.searchId);
-        if (listContainer && searchInput) {
-          const keyboardNavigator = new KeyboardNavigator(listContainer, config.itemSelector, [searchInput], this.uiManager);
-          listContainer.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
+        if (listContainersForKeyboard.length > 0 && searchInput) {
+          const keyboardNavigator = new KeyboardNavigator(listContainersForKeyboard, config.itemSelector, [searchInput], this.uiManager);
+          listContainersForKeyboard.forEach(container => container.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator)));
           searchInput.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
           if (!firstSearchInputFocused) {
             searchInput.focus();
@@ -199,3 +196,4 @@ class SearchManager {
 }
 
 export default SearchManager;
+
