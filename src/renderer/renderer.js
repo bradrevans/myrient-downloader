@@ -54,10 +54,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const directories = await myrientDataService.loadDirectory(fullUrl);
       if (directories.length === 0 && directoryStack.length > 0) {
+        stateService.set('downloadFromHere', false); // User drilled into a leaf directory
         handleDirectorySelect(directoryStack[directoryStack.length - 1]);
       } else {
         uiManager.showView('directories');
         uiManager.populateList('list-directories', directories, (item) => {
+          stateService.set('downloadFromHere', false); // User is drilling down
           const currentStack = stateService.get('directoryStack') || [];
           stateService.set('directoryStack', [...currentStack, item]);
           const newPath = [...currentStack, item].map(i => i.href).join('');
@@ -68,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (directoryStack.length >= 2) {
           downloadBtn.classList.remove('hidden');
           downloadBtn.onclick = () => {
+            stateService.set('downloadFromHere', true); // User chose to download from this level
             handleDirectorySelect(directoryStack[directoryStack.length - 1]);
           };
         } else {
@@ -193,14 +196,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const directoryStack = stateService.get('directoryStack') || [];
 
     if (currentView === 'results' || currentView === 'wizard') {
-        const url = directoryStack.length > 0 ? directoryStack.map(item => item.href).join('') : undefined;
+      const fromDownloadFromHere = stateService.get('downloadFromHere');
+      stateService.set('downloadFromHere', false); // Reset flag
+
+      if (fromDownloadFromHere) {
+        // SCENARIO B: Go back to the same directory view
+        const url = directoryStack.map(item => item.href).join('');
         loadDirectory(url);
-    } else if (directoryStack.length > 0) {
+      } else {
+        // SCENARIO A: Go up to the parent directory view
         const newStack = directoryStack.slice(0, directoryStack.length - 1);
         stateService.set('directoryStack', newStack);
         stateService.resetWizardState();
         const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
         loadDirectory(url);
+      }
+    } else if (directoryStack.length > 0) {
+      // Go up one level from a directory view
+      const newStack = directoryStack.slice(0, directoryStack.length - 1);
+      stateService.set('directoryStack', newStack);
+      stateService.resetWizardState();
+      const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+      loadDirectory(url);
     }
   });
 
