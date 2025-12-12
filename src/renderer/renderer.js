@@ -118,73 +118,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      const allTags = stateService.get('allTags');
-      const hasNoTags = Object.keys(allTags).length === 0 || Object.values(allTags).every(arr => arr.length === 0);
+      uiManager.hideLoading();
+      const userWantsToFilter = await uiManager.showConfirmationModal(
+        'Would you like to use the filtering wizard?',
+        {
+          title: 'Filtering Wizard',
+          confirmText: 'Yes',
+          cancelText: 'No'
+        }
+      );
+      if (userWantsToFilter === true) {
+        uiManager.showLoading('Preparing wizard...');
+        uiManager.showView('wizard');
+        stateService.set('wizardSkipped', false);
+        await uiManager.wizardManager.setupWizard();
+      } else if (userWantsToFilter === false) {
+        uiManager.showLoading('Preparing results...');
+        setTimeout(async () => {
+          const defaultFilters = {
+            include_tags: [],
+            exclude_tags: [],
+            include_strings: [],
+            exclude_strings: [],
+            rev_mode: 'all',
+            dedupe_mode: 'all',
+            priority_list: [],
+          };
+          await filterService.runFilter(defaultFilters);
+          uiManager.showView('results');
+          downloadUI.populateResults(hasSubdirectories);
+          stateService.set('wizardSkipped', true);
+          uiManager.hideLoading();
+        }, 0);
+      } else { // Handles null (dismissed)
+        const fromDownloadFromHere = stateService.get('downloadFromHere');
+        if (fromDownloadFromHere) {
+          stateService.set('downloadFromHere', false); // Reset flag
+          uiManager.hideLoading();
+          return; // Stay on the current directory view
+        }
 
-      if (hasNoTags) {
-        const defaultFilters = {
-          include_tags: [],
-          exclude_tags: [],
-          include_strings: [],
-          exclude_strings: [],
-          rev_mode: 'all',
-          dedupe_mode: 'all',
-          priority_list: [],
-        };
-        await filterService.runFilter(defaultFilters);
-        uiManager.showView('results');
-        downloadUI.populateResults(hasSubdirectories);
-        stateService.set('wizardSkipped', true);
-        uiManager.hideLoading();
-      } else {
-        uiManager.hideLoading();
-        const userWantsToFilter = await uiManager.showConfirmationModal(
-          'This directory contains filterable tags. Would you like to use the filtering wizard?',
-          {
-            title: 'Filtering Wizard',
-            confirmText: 'Yes',
-            cancelText: 'No'
-          }
-        );
-        if (userWantsToFilter === true) {
-          uiManager.showLoading('Preparing wizard...');
-          uiManager.showView('wizard');
-          stateService.set('wizardSkipped', false);
-          await uiManager.wizardManager.setupWizard();
-        } else if (userWantsToFilter === false) {
-          uiManager.showLoading('Preparing results...');
-          setTimeout(async () => {
-            const defaultFilters = {
-              include_tags: [],
-              exclude_tags: [],
-              include_strings: [],
-              exclude_strings: [],
-              rev_mode: 'all',
-              dedupe_mode: 'all',
-              priority_list: [],
-            };
-            await filterService.runFilter(defaultFilters);
-            uiManager.showView('results');
-            downloadUI.populateResults(hasSubdirectories);
-            stateService.set('wizardSkipped', true);
-            uiManager.hideLoading();
-          }, 0);
-        } else { // Handles null (dismissed)
-          const fromDownloadFromHere = stateService.get('downloadFromHere');
-          if (fromDownloadFromHere) {
-            stateService.set('downloadFromHere', false); // Reset flag
-            uiManager.hideLoading();
-            return; // Stay on the current directory view
-          }
-
-          const currentStack = stateService.get('directoryStack') || [];
-          if (currentStack.length > 0) {
-            const newStack = currentStack.slice(0, currentStack.length - 1);
-            stateService.setDirectoryStack(newStack);
-            stateService.resetWizardState();
-            const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
-            loadDirectory(url);
-          }
+        const currentStack = stateService.get('directoryStack') || [];
+        if (currentStack.length > 0) {
+          const newStack = currentStack.slice(0, currentStack.length - 1);
+          stateService.setDirectoryStack(newStack);
+          stateService.resetWizardState();
+          const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+          loadDirectory(url);
         }
       }
     } catch (e) {
