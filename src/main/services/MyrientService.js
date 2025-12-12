@@ -1,7 +1,10 @@
 import https from 'https';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import pLimit from 'p-limit';
 import FileParserService from './FileParserService.js';
+
+const CONCURRENCY_LIMIT = 5;
 
 /**
  * Service responsible for interacting with the Myrient website to fetch directory listings and file information.
@@ -77,28 +80,23 @@ class MyrientService {
   }
 
   /**
-   * Fetches and parses the main archive directories from a given URL.
+   * Fetches and parses the list of directories from a given URL.
+   * This method replaces the previous `getMainArchives` and `getDirectoryList` methods.
    * @memberof MyrientService
-   * @param {string} url The URL of the Myrient base page.
-   * @returns {Promise<Array<{name: string, href: string, isDir: boolean}>>} A promise that resolves with an array of archive directory link objects.
+   * @param {string} url The URL to fetch directories from.
+   * @returns {Promise<{data: Array<{name: string, href: string, isDir: boolean}>>}>} A promise that resolves with an object containing a sorted array of directory link objects.
    */
-  async getMainArchives(url) {
+  async getDirectory(url) {
     const html = await this.getPage(url);
     const links = this.parseLinks(html);
-    return links.filter(link => link.isDir);
-  }
-
-  /**
-   * Fetches and parses the list of directories within a given archive URL.
-   * @memberof MyrientService
-   * @param {string} url The URL of the archive directory.
-   * @returns {Promise<{data: Array<{name: string, href: string, isDir: boolean}>}>} A promise that resolves with an object containing a sorted array of directory link objects.
-   *                                                                                The array is sorted alphabetically by name.
-   */
-  async getDirectoryList(url) {
-    const html = await this.getPage(url);
-    const links = this.parseLinks(html).filter(link => link.isDir);
-    return { data: links.sort((a, b) => a.name.localeCompare(b.name)) };
+    const directories = links.filter(link => link.isDir);
+    const files = links.filter(link => !link.isDir);
+    return {
+      data: {
+        directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
+        files: files.sort((a, b) => a.name.localeCompare(b.name))
+      }
+    };
   }
 
   /**
@@ -140,11 +138,18 @@ class MyrientService {
 
     allRawFileLinks = [...currentLevelFiles];
 
-    for (const dir of subdirectories) {
-      const subdirectoryUrl = new URL(dir.href, url).toString();
-      const subDirRawFileLinks = await this._scrapeRawFileLinks(subdirectoryUrl, baseUrl);
+    const limit = pLimit(CONCURRENCY_LIMIT);
+    const subdirectoryPromises = subdirectories.map(dir =>
+      limit(() => {
+        const subdirectoryUrl = new URL(dir.href, url).toString();
+        return this._scrapeRawFileLinks(subdirectoryUrl, baseUrl);
+      })
+    );
+
+    const results = await Promise.all(subdirectoryPromises);
+    results.forEach(subDirRawFileLinks => {
       allRawFileLinks = [...allRawFileLinks, ...subDirRawFileLinks];
-    }
+    });
 
     return allRawFileLinks;
   }

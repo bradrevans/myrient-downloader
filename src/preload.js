@@ -19,16 +19,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   /**
-   * Fetches the list of main archives from Myrient.
-   * @returns {Promise<Array<object>>} A promise resolving to an array of archive objects.
-   */
-  getMainArchives: () => ipcRenderer.invoke('get-main-archives'),
-  /**
-   * Fetches the directory listing for a given archive URL.
-   * @param {string} archiveUrl - The URL of the archive.
+   * Fetches the directory listing for a given URL, or the root directories if no URL is provided.
+   * @param {string} [url] - The URL to fetch the directory from.
    * @returns {Promise<object>} A promise resolving to the directory list.
    */
-  getDirectoryList: (archiveUrl) => ipcRenderer.invoke('get-directory-list', archiveUrl),
+  getDirectory: (url) => ipcRenderer.invoke('get-directory', url),
   /**
    * Scrapes and parses files from a given page URL.
    * @param {string} pageUrl - The URL to scrape.

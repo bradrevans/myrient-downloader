@@ -38,7 +38,7 @@ class IpcManager {
     this.downloadManager = new DownloadManager(win, this.consoleService, downloadInfoService, downloadService);
 
     this.myrientDataManager = new MyrientDataManager(myrientService);
-    this.filterManager = new FilterManager();
+    this.filterManager = new FilterManager(null, this.myrientDataManager);
     this.downloadOperationManager = new DownloadOperationManager(win, this.downloadManager);
     this.filterPersistenceManager = new FilterPersistenceManager();
 
@@ -61,24 +61,15 @@ class IpcManager {
       return MYRIENT_BASE_URL;
     });
     /**
-     * Handles the 'get-main-archives' IPC call.
-     * @memberof IpcManager
-     * @returns {Promise<Array<object>>} A promise that resolves with an array of main archives.
-     */
-    ipcMain.handle('get-main-archives', () => {
-
-      return this.myrientDataManager.getMainArchives();
-    });
-    /**
-     * Handles the 'get-directory-list' IPC call.
+     * Handles the 'get-directory' IPC call.
      * @memberof IpcManager
      * @param {Electron.IpcMainEvent} event The IPC event.
      * @param {Array<any>} args Arguments passed from the renderer process.
      * @returns {Promise<object>} A promise that resolves with the directory list.
      */
-    ipcMain.handle('get-directory-list', (event, ...args) => {
-
-      return this.myrientDataManager.getDirectoryList(...args);
+    ipcMain.handle('get-directory', (event, ...args) => {
+      const url = args[0] || MYRIENT_BASE_URL;
+      return this.myrientDataManager.getDirectory(url);
     });
     /**
      * Handles the 'scrape-and-parse-files' IPC call.

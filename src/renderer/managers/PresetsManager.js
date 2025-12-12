@@ -65,7 +65,7 @@ class PresetsManager {
     setButtonsDisabled(false);
 
     const groupedPresets = presets.reduce((acc, preset) => {
-      const key = `${preset.archiveName || 'Uncategorized'} - ${preset.directoryName || ''}`.replace(/ - $/, '');
+      const key = preset.pathDisplayName || 'Uncategorized';
       if (!acc[key]) {
         acc[key] = [];
       }
@@ -104,10 +104,10 @@ class PresetsManager {
         presetElement.classList.add('flex', 'items-center', 'justify-between', 'p-2', 'bg-neutral-800', 'rounded-md', 'space-x-2', 'border', 'border-transparent');
         presetElement.innerHTML = `
                     <label class="flex items-center cursor-pointer">
-                        <input type="checkbox" class="h-4 w-4" data-preset-name="${preset.name}" data-archive-href="${preset.archiveHref}" data-directory-href="${preset.directoryHref}">
+                        <input type="checkbox" class="h-4 w-4" data-preset-name="${preset.name}" data-preset-full-path="${preset.fullPath}">
                         <span class="text-neutral-300 ml-2">${preset.name}</span>
                     </label>
-                    <button class="delete-preset-btn text-red-500 hover:text-red-700" data-preset-name="${preset.name}" data-archive-href="${preset.archiveHref}" data-directory-href="${preset.directoryHref}">
+                    <button class="delete-preset-btn text-red-500 hover:text-red-700" data-preset-name="${preset.name}" data-preset-full-path="${preset.fullPath}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                         </svg>
@@ -200,10 +200,9 @@ class PresetsManager {
       if (target.closest('.delete-preset-btn')) {
         const deleteButton = target.closest('.delete-preset-btn');
         const presetName = deleteButton.dataset.presetName;
-        const archiveHref = deleteButton.dataset.archiveHref;
-        const directoryHref = deleteButton.dataset.directoryHref;
+        const fullPath = deleteButton.dataset.presetFullPath;
         const presets = this.stateService.get('savedFilters');
-        const presetToDelete = presets.find(p => p.name === presetName && p.archiveHref === archiveHref && p.directoryHref === directoryHref);
+        const presetToDelete = presets.find(p => p.name === presetName && p.fullPath === fullPath);
         if (presetToDelete) {
           await this.deletePreset(presetToDelete);
         }
@@ -287,9 +286,8 @@ class PresetsManager {
     const allPresets = this.stateService.get('savedFilters');
     checkboxes.forEach(checkbox => {
       const presetName = checkbox.dataset.presetName;
-      const archiveHref = checkbox.dataset.archiveHref;
-      const directoryHref = checkbox.dataset.directoryHref;
-      const preset = allPresets.find(p => p.name === presetName && p.archiveHref === archiveHref && p.directoryHref === directoryHref);
+      const fullPath = checkbox.dataset.presetFullPath;
+      const preset = allPresets.find(p => p.name === presetName && p.fullPath === fullPath);
       if (preset) {
         selectedPresets.push(preset);
       }

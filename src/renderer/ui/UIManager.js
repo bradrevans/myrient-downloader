@@ -26,11 +26,11 @@ class UIManager {
   /**
    * Creates an instance of UIManager.
    * @param {HTMLElement} viewContainer The DOM element where views will be loaded.
-   * @param {function(): void} loadArchivesCallback Callback function to load archives.
+   * @param {function(): void} loadDirectoryCallback Callback function to load a directory.
    */
-  constructor(viewContainer, loadArchivesCallback, presetsManager) {
+  constructor(viewContainer, loadDirectoryCallback, presetsManager) {
     this.viewContainer = viewContainer;
-    this.loadArchivesCallback = loadArchivesCallback;
+    this.loadDirectoryCallback = loadDirectoryCallback;
     this.presetsManager = presetsManager;
 
     this.viewManager = new ViewManager(viewContainer);
@@ -40,6 +40,7 @@ class UIManager {
     this.wizardManager = new WizardManager(this);
 
     this.downloadUI = null;
+    this.subTextTimer = null;
   }
 
   /**
@@ -56,8 +57,31 @@ class UIManager {
    * @memberof UIManager
    * @param {string} [text='Loading...'] The message to display alongside the spinner.
    */
-  showLoading(text = 'Loading...') {
-    document.getElementById('loading-text').textContent = text;
+  showLoading(text = 'Loading...', subText = '') {
+    const textContainerEl = document.getElementById('loading-text-container');
+    const textEl = document.getElementById('loading-text');
+    const subtextEl = document.getElementById('loading-subtext');
+
+    textEl.textContent = text;
+    textContainerEl.classList.remove('animate-slide-up-fast');
+    subtextEl.textContent = '';
+    subtextEl.classList.add('hidden');
+    subtextEl.classList.remove('animate-fade-in');
+
+    if (this.subTextTimer) {
+      clearTimeout(this.subTextTimer);
+      this.subTextTimer = null;
+    }
+
+    if (subText) {
+      this.subTextTimer = setTimeout(() => {
+        textContainerEl.classList.add('animate-slide-up-fast');
+        subtextEl.textContent = subText;
+        subtextEl.classList.remove('hidden');
+        subtextEl.classList.add('animate-fade-in');
+      }, 3000);
+    }
+
     document.getElementById('loading-spinner').classList.remove('hidden');
   }
 
@@ -67,6 +91,19 @@ class UIManager {
    */
   hideLoading() {
     document.getElementById('loading-spinner').classList.add('hidden');
+
+    if (this.subTextTimer) {
+      clearTimeout(this.subTextTimer);
+      this.subTextTimer = null;
+    }
+
+    const textContainerEl = document.getElementById('loading-text-container');
+    const subtextEl = document.getElementById('loading-subtext');
+
+    textContainerEl.classList.remove('animate-slide-up-fast');
+    subtextEl.textContent = '';
+    subtextEl.classList.add('hidden');
+    subtextEl.classList.remove('animate-fade-in');
   }
 
   /**
@@ -97,6 +134,53 @@ class UIManager {
       el.dataset.href = item.href;
       el.tabIndex = 0;
       el.addEventListener('click', () => clickHandler(item));
+      listEl.appendChild(el);
+    });
+  }
+
+  /**
+   * Populates a list element with file items.
+   * @memberof UIManager
+   * @param {string} listId The ID of the HTML list element to populate.
+   * @param {Array<object>} items An array of file objects to display in the list. Each object should have `name` and `size` properties.
+   */
+  populateFiles(listId, items) {
+    const listEl = document.getElementById(listId);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    const headerContainer = document.getElementById('files-header-container');
+
+    if (items.length > 0) {
+      if (headerContainer) {
+        headerContainer.innerHTML = `
+          <hr class="border-neutral-700 my-4">
+          <div class="flex justify-between text-neutral-400 text-sm font-bold px-2">
+            <span>Filename</span>
+            <span>Size</span>
+          </div>
+        `;
+      }
+    } else {
+      if (headerContainer) {
+        headerContainer.innerHTML = '';
+      }
+    }
+
+    items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'file-item flex justify-between items-center p-2 rounded-md text-neutral-400 text-sm';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'truncate';
+      nameSpan.textContent = item.name;
+      nameSpan.title = item.name;
+
+      const sizeSpan = document.createElement('span');
+      sizeSpan.className = 'flex-shrink-0 ml-4';
+      sizeSpan.textContent = item.size;
+
+      el.appendChild(nameSpan);
+      el.appendChild(sizeSpan);
       listEl.appendChild(el);
     });
   }
@@ -179,7 +263,7 @@ class UIManager {
         };
 
         try {
-          this.showLoading('Filtering files...');
+          this.showLoading('Applying filters...', 'Depending on how many files the directory contains this can take some time.');
           await filterService.runFilter(filters);
           if (stateService.get('finalFileList').length === 0) {
             this.hideLoading();
@@ -304,11 +388,10 @@ class UIManager {
       });
 
       document.getElementById('download-restart-btn').addEventListener('click', () => {
-        stateService.set('archive', { name: '', href: '' });
-        stateService.set('directory', { name: '', href: '' });
+        stateService.set('directoryStack', []);
         stateService.resetWizardState();
 
-        this.loadArchivesCallback();
+        this.loadDirectoryCallback();
       });
     }
   }

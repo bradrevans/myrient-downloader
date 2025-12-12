@@ -8,22 +8,23 @@ import FilterService from '../services/FilterService.js';
 class FilterManager {
     /**
      * Creates an instance of FilterManager.
-     * @param {FilterService} [filterService] An optional instance of FilterService. If not provided, a new one will be created.
+     * @param {FilterService} [filterService] An optional instance of FilterService.
+     * @param {MyrientDataManager} myrientDataManager An instance of MyrientDataManager.
      */
-    constructor(filterService) {
+    constructor(filterService, myrientDataManager) {
         this.filterService = filterService || new FilterService();
+        this.myrientDataManager = myrientDataManager;
     }
 
     /**
-     * Applies a set of filters to a given list of files.
+     * Applies a set of filters to the internally stored list of files.
      * @memberof FilterManager
-     * @param {Array<object>} allFiles An array of file objects to be filtered.
-     * @param {Array<string>} allTags An array of all available tags.
      * @param {object} filters An object containing the filter criteria.
-     * @returns {object} An object containing either the filtered data (data) or an error message if the operation fails.
+     * @returns {object} An object containing either the filtered data or an error message.
      */
-    filterFiles(allFiles, filters) {
+    filterFiles(filters) {
         try {
+            const allFiles = this.myrientDataManager.getAllFiles();
             return { data: this.filterService.applyFilters(allFiles, filters) };
         } catch (e) {
             return { error: e.message };

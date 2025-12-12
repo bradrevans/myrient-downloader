@@ -123,9 +123,14 @@
 
   <main class="pt-0 p-8 h-[calc(100vh-8rem)] overflow-y-auto">
     <div id="loading-spinner"
-      class="hidden absolute inset-0 bg-neutral-900 bg-opacity-75 flex items-center justify-center z-50">
-      <div class="loading-spinner-animation"></div>
-      <span id="loading-text" class="text-white text-xl ml-4">Loading...</span>
+      class="hidden absolute inset-0 bg-neutral-900 bg-opacity-75 flex-col flex items-center justify-center z-50">
+      <div id="loading-text-container" class="relative">
+          <div id="loading-main-container" class="flex items-center">
+            <div class="loading-spinner-animation"></div>
+            <span id="loading-text" class="text-white text-xl ml-4">Loading...</span>
+          </div>
+          <span id="loading-subtext" class="absolute left-1/2 -translate-x-1/2 top-full text-neutral-400 text-sm mt-2 w-max max-w-xs text-center"></span>
+        </div>
     </div>
 
     <div id="confirmation-modal"

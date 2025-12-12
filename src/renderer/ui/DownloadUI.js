@@ -1,6 +1,7 @@
 import { formatTime, formatBytes, parseSize } from '../../shared/utils/formatters.js';
 import InfoIcon from './InfoIcon.js';
 import tooltipContent from '../tooltipContent.js';
+import VirtualList from './VirtualList.js';
 
 /**
  * Manages the user interface elements and interactions related to the download process.
@@ -21,6 +22,8 @@ export default class DownloadUI {
     this.resultsListChangeListener = null;
     this._isExtracting = false;
     this.downloadOptionsState = null;
+    this.virtualList = null;
+    this.selectedFileNames = new Set();
     this._setupEventListeners();
     if (window.electronAPI && window.electronAPI.onExtractionStarted) {
       window.electronAPI.onExtractionStarted(() => {
@@ -299,13 +302,13 @@ export default class DownloadUI {
     }
 
     const finalFileList = this.stateService.get('finalFileList');
+    const fileMap = new Map(finalFileList.map(f => [f.name_raw.trim(), f]));
     const checkedCheckboxes = elements.resultsList.querySelectorAll('input[type=checkbox]:checked');
 
     const updatedSelectedResults = Array.from(checkedCheckboxes)
       .map(cb => {
         const name = cb.parentElement.dataset.name.trim();
-        const file = finalFileList.find(f => f.name_raw && f.name_raw.trim() === name);
-        return file;
+        return fileMap.get(name);
       })
       .filter(Boolean);
 
@@ -394,24 +397,49 @@ export default class DownloadUI {
     elements.resultsFileCount.textContent = finalFileList.length;
     elements.resultsTotalCount.textContent = this.stateService.get('allFiles').length;
 
-    elements.resultsList.innerHTML = '';
+    // Set the initial selection state before rendering
+    this.stateService.setSelectedFilesForDownload([...finalFileList]);
+    this.selectedFileNames = new Set(finalFileList.map(f => f.name_raw));
 
-    finalFileList.forEach(item => {
+    const rowRenderer = (item) => {
       const el = document.createElement('label');
       el.className = 'flex items-center p-2 bg-neutral-900 rounded-md space-x-2 cursor-pointer border border-transparent hover:border-accent-500 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent-500 select-none';
       el.dataset.name = item.name_raw;
       el.title = item.name_raw;
       el.tabIndex = 0;
 
-      el.innerHTML = `
-        <input type="checkbox" class="h-4 w-4" checked>
-        <div class="flex-grow min-w-0 flex-shrink-1">
-          <span class="text-neutral-300 truncate block">${item.name_raw}</span>
-        </div>
-        <span class="text-neutral-400 ml-auto whitespace-nowrap">${formatBytes(parseSize(item.size))}</span>
-      `;
-      elements.resultsList.appendChild(el);
-    });
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'h-4 w-4';
+      checkbox.checked = this.selectedFileNames.has(item.name_raw);
+      el.appendChild(checkbox);
+
+      const div = document.createElement('div');
+      div.className = 'flex-grow min-w-0 flex-shrink-1';
+      const spanName = document.createElement('span');
+      spanName.className = 'text-neutral-300 truncate block';
+      spanName.textContent = item.name_raw;
+      div.appendChild(spanName);
+      el.appendChild(div);
+
+      const spanSize = document.createElement('span');
+      spanSize.className = 'text-neutral-400 ml-auto whitespace-nowrap';
+      spanSize.textContent = formatBytes(parseSize(item.size));
+      el.appendChild(spanSize);
+
+      return el;
+    };
+
+    if (this.virtualList) {
+      this.virtualList.updateItems(finalFileList);
+    } else {
+      this.virtualList = new VirtualList(elements.resultsList, {
+        items: finalFileList,
+        rowRenderer,
+        rowHeight: 40,
+        spacing: 8,
+      });
+    }
 
     elements.createSubfolderCheckbox.checked = false;
     elements.createSubfolderCheckbox.disabled = false;
@@ -445,8 +473,8 @@ export default class DownloadUI {
       }
     }
 
-    this._updateSelectionState();
-    this.updateScanButtonText();
+    this.updateSelectedCount();
+    this._updateTotalDownloadSizeDisplay();
     this.updateScanButtonState();
 
     if (this.resultsListChangeListener) {
@@ -455,7 +483,24 @@ export default class DownloadUI {
 
     this.resultsListChangeListener = (e) => {
       if (e.target.type === 'checkbox') {
-        this._updateSelectionState();
+        const checkbox = e.target;
+        const name = checkbox.parentElement.dataset.name.trim();
+
+        if (checkbox.checked) {
+          this.selectedFileNames.add(name);
+        } else {
+          this.selectedFileNames.delete(name);
+        }
+
+        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+
+        this.stateService.setSelectedFilesForDownload(newSelectedFiles);
+
+        this.updateSelectedCount();
+        this._updateTotalDownloadSizeDisplay();
+        this.updateScanButtonState();
+
         e.target.parentElement.focus();
       }
     };
@@ -479,7 +524,6 @@ export default class DownloadUI {
    * Initiates the download process after performing necessary checks and UI updates.
    * Displays confirmation modals for directory structure mismatches.
    * @memberof DownloadUI
-   * @returns {Promise<void>}
    */
   async startDownload() {
     const elements = this._getElements();
@@ -599,17 +643,33 @@ export default class DownloadUI {
       if (!elements.resultsList) return;
 
       if (e.target.id === 'select-all-results-btn') {
-        elements.resultsList.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
-          checkbox.checked = true;
-        });
-        this._updateSelectionState();
+        const displayedItems = this.virtualList.items;
+        displayedItems.forEach(item => this.selectedFileNames.add(item.name_raw));
+        
+        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+        this.stateService.setSelectedFilesForDownload(newSelectedFiles);
+
+        this._updateTotalDownloadSizeDisplay();
+        this.updateSelectedCount();
+        this.updateScanButtonState();
+        this.virtualList.displayItems(displayedItems);
       }
 
       if (e.target.id === 'deselect-all-results-btn') {
-        elements.resultsList.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
-          checkbox.checked = false;
-        });
-        this._updateSelectionState();
+        const displayedItems = this.virtualList.items;
+        const displayedItemNames = new Set(displayedItems.map(item => item.name_raw));
+        
+        displayedItemNames.forEach(name => this.selectedFileNames.delete(name));
+        
+        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+        this.stateService.setSelectedFilesForDownload(newSelectedFiles);
+
+        this._updateTotalDownloadSizeDisplay();
+        this.updateSelectedCount();
+        this.updateScanButtonState();
+        this.virtualList.displayItems(displayedItems);
       }
     });
 
@@ -812,5 +872,16 @@ export default class DownloadUI {
         elements.extractionProgressText.textContent = `${await formatBytes(data.fileProgress)} / ${await formatBytes(data.fileTotal)} (${filePercentFixed}%)`;
       }
     });
+  }
+  
+  /**
+   * Destroys the virtual list instance.
+   * @memberof DownloadUI
+   */
+  destroy() {
+    if (this.virtualList) {
+      this.virtualList.destroy();
+      this.virtualList = null;
+    }
   }
 }

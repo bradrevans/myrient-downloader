@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
 
   const presetsManager = new PresetsManager(document.getElementById('presets-content'), stateService);
-  const uiManager = new UIManager(document.getElementById('view-container'), loadArchives, presetsManager);
+  const uiManager = new UIManager(document.getElementById('view-container'), loadDirectory, presetsManager);
   presetsManager.setUIManager(uiManager);
   presetsManager.addEventListeners();
   await presetsManager.loadPresets();
@@ -41,44 +41,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   settingsManager.setupSettings();
 
   /**
-   * Loads the main archives from the Myrient service and populates the archives view.
-   * @async
-   * @returns {Promise<void>}
+   * Loads directories from the Myrient service and populates the view.
+   * @param {string} [url] - The URL to load directories from. If not provided, loads from the base URL.
    */
-  async function loadArchives() {
-    uiManager.showLoading('Loading Archives...');
+  async function loadDirectory(url) {
+    uiManager.showLoading('Loading...');
     try {
-      const archives = await myrientDataService.loadArchives();
-      uiManager.showView('archives');
-      uiManager.populateList('list-archives', archives, (item) => {
-        stateService.set('archive', item);
-        loadDirectories();
-      });
-    } catch (e) {
-      alert(`Error: ${e.message}`);
-    } finally {
-      uiManager.hideLoading();
-    }
-  }
+      // Construct the full path from the directory stack
+      const directoryStack = stateService.get('directoryStack') || [];
+      const path = directoryStack.map(item => item.href).join('');
+      const fullUrl = url ? new URL(path, stateService.get('baseUrl')).href : stateService.get('baseUrl');
 
-  /**
-   * Loads the directory list for the currently selected archive and populates the directories view.
-   * If the directory is empty, it directly calls handleDirectorySelect with the current archive.
-   * @async
-   * @returns {Promise<void>}
-   */
-  async function loadDirectories() {
-    uiManager.showLoading('Loading Directories...');
-    try {
-      const directories = await myrientDataService.loadDirectories();
-      if (directories.length === 0) {
-        const currentArchive = stateService.get('archive');
-        handleDirectorySelect(currentArchive);
+      const content = await myrientDataService.loadDirectory(fullUrl);
+      if (content.directories.length === 0 && directoryStack.length > 0) {
+        stateService.set('downloadFromHere', false); // User drilled into a leaf directory
+        handleDirectorySelect(directoryStack[directoryStack.length - 1]);
       } else {
         uiManager.showView('directories');
-        uiManager.populateList('list-directories', directories, (item) => {
-          handleDirectorySelect(item);
+        uiManager.populateList('list-directories', content.directories, (item) => {
+          stateService.set('downloadFromHere', false); // User is drilling down
+          const currentStack = stateService.get('directoryStack') || [];
+          stateService.setDirectoryStack([...currentStack, item]);
+          const newPath = [...currentStack, item].map(i => i.href).join('');
+          loadDirectory(newPath);
         });
+        uiManager.populateFiles('list-files', content.files);
+
+        const downloadBtn = document.getElementById('download-from-here-btn');
+        if (directoryStack.length >= 1) {
+          downloadBtn.classList.remove('hidden');
+          downloadBtn.onclick = () => {
+            stateService.set('downloadFromHere', true); // User chose to download from this level
+            handleDirectorySelect(directoryStack[directoryStack.length - 1]);
+          };
+        } else {
+          downloadBtn.classList.add('hidden');
+        }
         uiManager.hideLoading();
       }
     } catch (e) {
@@ -95,64 +93,30 @@ document.addEventListener('DOMContentLoaded', async () => {
    * @returns {Promise<void>}
    */
   async function handleDirectorySelect(item) {
-    if (stateService.get('directory')?.href !== item.href) {
-      stateService.resetWizardState();
-    }
-    stateService.set('directory', item);
-    uiManager.showLoading('Scanning files...');
+    // Unlike before, we don't reset the wizard state here based on item href,
+    // as the directoryStack is the source of truth for navigation state.
+    // Resetting should happen when navigating via breadcrumbs or back button.
+    uiManager.showLoading('Scanning files...', 'Depending on how many files the directory contains this can take some time.');
     try {
-      const { hasSubdirectories } = await myrientDataService.scrapeAndParseFiles();
+      await myrientDataService.scrapeAndParseFiles();
 
-      if (hasSubdirectories) {
-        const defaultFilters = {
-          include_tags: [],
-          exclude_tags: [],
-          include_strings: [],
-          exclude_strings: [],
-          rev_mode: 'all',
-          dedupe_mode: 'all',
-          priority_list: [],
-        };
-        await filterService.runFilter(defaultFilters);
-        uiManager.showView('results');
-        downloadUI.populateResults(hasSubdirectories);
-        stateService.set('wizardSkipped', true);
-        return;
-      }
-
-      const allTags = stateService.get('allTags');
-      const hasNoTags = Object.keys(allTags).length === 0 || Object.values(allTags).every(arr => arr.length === 0);
-
-      if (hasNoTags) {
-        const defaultFilters = {
-          include_tags: [],
-          exclude_tags: [],
-          include_strings: [],
-          exclude_strings: [],
-          rev_mode: 'all',
-          dedupe_mode: 'all',
-          priority_list: [],
-        };
-        await filterService.runFilter(defaultFilters);
-        uiManager.showView('results');
-        downloadUI.populateResults(hasSubdirectories);
-        stateService.set('wizardSkipped', true);
-      } else {
-        uiManager.hideLoading();
-        const userWantsToFilter = await uiManager.showConfirmationModal(
-          'This directory contains filterable tags. Would you like to use the filtering wizard?',
-          {
-            title: 'Filtering Wizard',
-            confirmText: 'Yes',
-            cancelText: 'No'
-          }
-        );
-        if (userWantsToFilter === true) {
-          uiManager.showView('wizard');
-          stateService.set('wizardSkipped', false);
-          uiManager.wizardManager.setupWizard();
-        } else if (userWantsToFilter === false) {
-          uiManager.showLoading('Filtering files...');
+      uiManager.hideLoading();
+      const userWantsToFilter = await uiManager.showConfirmationModal(
+        'Would you like to use the filtering wizard?',
+        {
+          title: 'Filtering Wizard',
+          confirmText: 'Yes',
+          cancelText: 'No'
+        }
+      );
+      if (userWantsToFilter === true) {
+        uiManager.showLoading('Preparing wizard...');
+        uiManager.showView('wizard');
+        stateService.set('wizardSkipped', false);
+        await uiManager.wizardManager.setupWizard();
+      } else if (userWantsToFilter === false) {
+        uiManager.showLoading('Preparing results...');
+        setTimeout(async () => {
           const defaultFilters = {
             include_tags: [],
             exclude_tags: [],
@@ -164,72 +128,79 @@ document.addEventListener('DOMContentLoaded', async () => {
           };
           await filterService.runFilter(defaultFilters);
           uiManager.showView('results');
-          downloadUI.populateResults(hasSubdirectories);
+          downloadUI.populateResults();
           stateService.set('wizardSkipped', true);
+          uiManager.hideLoading();
+        }, 0);
+      } else { // Handles null (dismissed)
+        const fromDownloadFromHere = stateService.get('downloadFromHere');
+        if (fromDownloadFromHere) {
+          stateService.set('downloadFromHere', false); // Reset flag
+          uiManager.hideLoading();
+          return; // Stay on the current directory view
+        }
+
+        const currentStack = stateService.get('directoryStack') || [];
+        if (currentStack.length > 0) {
+          const newStack = currentStack.slice(0, currentStack.length - 1);
+          stateService.setDirectoryStack(newStack);
+          stateService.resetWizardState();
+          const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+          loadDirectory(url);
         }
       }
     } catch (e) {
-      alert(`Error: ${e.message}`);
-      uiManager.showView('directories');
-    } finally {
       uiManager.hideLoading();
+      alert(`Error: ${e.message}`);
+      // Go back to the previous directory view on error
+      const currentStack = stateService.get('directoryStack') || [];
+      const url = currentStack.length > 0 ? currentStack.map(i => i.href).join('') : undefined;
+      loadDirectory(url);
     }
   }
 
   document.getElementById('breadcrumbs').addEventListener('click', (e) => {
     if (stateService.get('isDownloading')) return;
-    if (e.target.dataset.view) {
-      const view = e.target.dataset.view;
+    if (e.target.dataset.step !== undefined && e.target.classList.contains('cursor-pointer')) {
       const step = parseInt(e.target.dataset.step, 10);
-      if (step === 0) {
-        stateService.set('archive', { name: '', href: '' });
-        stateService.set('directory', { name: '', href: '' });
-        stateService.resetWizardState();
-        loadArchives();
-      }
-      if (step === 1) {
-        stateService.set('directory', { name: '', href: '' });
-        stateService.resetWizardState();
-        loadDirectories();
-      }
+      const currentStack = stateService.get('directoryStack') || [];
+      const newStack = currentStack.slice(0, step);
+      stateService.setDirectoryStack(newStack);
+      stateService.resetWizardState();
+      const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+      loadDirectory(url);
     }
   });
 
-  /**
-   * Navigates back to either the directory list or the archive list based on the current state.
-   */
-  function goBackToDirectoryOrArchiveList() {
-    const archiveHref = stateService.get('archive').href;
-    const directoryHref = stateService.get('directory').href;
-
-    if (archiveHref === directoryHref) {
-      stateService.set('archive', { name: '', href: '' });
-      stateService.set('directory', { name: '', href: '' });
-      stateService.resetWizardState();
-      loadArchives();
-    } else {
-      stateService.set('directory', { name: '', href: '' });
-      stateService.resetWizardState();
-      loadDirectories();
-    }
-  }
-
   document.getElementById('header-back-btn').addEventListener('click', () => {
     if (stateService.get('isDownloading')) return;
-    if (stateService.get('currentView') === 'results') {
-      if (stateService.get('wizardSkipped')) {
-        goBackToDirectoryOrArchiveList();
+
+    const currentView = stateService.get('currentView');
+    const directoryStack = stateService.get('directoryStack') || [];
+
+    if (currentView === 'results' || currentView === 'wizard') {
+      const fromDownloadFromHere = stateService.get('downloadFromHere');
+      stateService.set('downloadFromHere', false); // Reset flag
+
+      if (fromDownloadFromHere) {
+        // SCENARIO B: Go back to the same directory view
+        const url = directoryStack.map(item => item.href).join('');
+        loadDirectory(url);
       } else {
-        uiManager.showView('wizard');
-        uiManager.wizardManager.setupWizard();
+        // SCENARIO A: Go up to the parent directory view
+        const newStack = directoryStack.slice(0, directoryStack.length - 1);
+        stateService.setDirectoryStack(newStack);
+        stateService.resetWizardState();
+        const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+        loadDirectory(url);
       }
-    } else if (stateService.get('currentView') === 'wizard') {
-      goBackToDirectoryOrArchiveList();
-    } else if (stateService.get('currentView') === 'directories') {
-      stateService.set('archive', { name: '', href: '' });
-      stateService.set('directory', { name: '', href: '' });
+    } else if (directoryStack.length > 0) {
+      // Go up one level from a directory view
+      const newStack = directoryStack.slice(0, directoryStack.length - 1);
+      stateService.setDirectoryStack(newStack);
       stateService.resetWizardState();
-      loadArchives();
+      const url = newStack.length > 0 ? newStack.map(item => item.href).join('') : undefined;
+      loadDirectory(url);
     }
   });
 
@@ -345,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  loadArchives();
+  loadDirectory();
   uiManager.breadcrumbManager.updateBreadcrumbs();
   setAppVersion();
   checkForUpdatesOnStartup();

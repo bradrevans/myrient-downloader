@@ -35,60 +35,62 @@ class SearchManager {
    */
   setupSearchEventListeners(viewId) {
     this.searchInstances = {};
-    /**
-     * Configuration for search instances across different views.
-     * @typedef {object} SearchConfig
-     * @property {string} searchId The ID of the search input element.
-     * @property {string} [listId] The ID of the list container element for single-list searches.
-     * @property {string} [includeListId] The ID of the include list container for wizard-like dual-list searches.
-     * @property {string} [excludeListId] The ID of the exclude list container for wizard-like dual-list searches.
-     * @property {string} itemSelector A CSS selector for the searchable items within the list.
-     * @property {string} noResultsText The message to display when no search results are found.
-     * @property {string} noItemsText The message to display when no items are available.
-     * @property {string} [parentContainerId] The ID of the parent container for keyboard navigation in wizard views.
-     */
     const searchConfigs = {
-      'archives': {
-        searchId: 'search-archives',
-        listId: 'list-archives',
-        itemSelector: '.list-item',
-        noResultsText: 'No archives found matching your search.',
-        noItemsText: 'No archives available.'
-      },
       'directories': {
         searchId: 'search-directories',
-        listId: 'list-directories',
-        itemSelector: '.list-item',
-        noResultsText: 'No directories found matching your search.',
-        noItemsText: 'No directories available.'
+        listIds: ['list-directories', 'list-files'],
+        itemSelector: '.list-item, .file-item',
+        noResultsText: 'No directories or files found matching your search.',
+        noItemsText: 'No directories or files available.'
       },
       'wizard': [
         {
           searchId: 'search-tags-region',
-          includeListId: 'wizard-tags-list-region-include',
-          excludeListId: 'wizard-tags-list-region-exclude',
           itemSelector: 'label',
           noResultsText: 'No region tags found matching your search.',
           noItemsText: 'No region tags available.',
-          parentContainerId: 'tag-category-region-container'
+          parentContainerId: 'tag-category-region-container',
+          options: {
+            customSearchHandler: (query) => {
+              const wizardManager = this.uiManager.wizardManager;
+              if (wizardManager && wizardManager.virtualLists) {
+                wizardManager.virtualLists['region-include']?.search(query);
+                wizardManager.virtualLists['region-exclude']?.search(query);
+              }
+            }
+          }
         },
         {
           searchId: 'search-tags-language',
-          includeListId: 'wizard-tags-list-language-include',
-          excludeListId: 'wizard-tags-list-language-exclude',
           itemSelector: 'label',
           noResultsText: 'No language tags found matching your search.',
           noItemsText: 'No language tags available.',
-          parentContainerId: 'tag-category-language-container'
+          parentContainerId: 'tag-category-language-container',
+          options: {
+            customSearchHandler: (query) => {
+              const wizardManager = this.uiManager.wizardManager;
+              if (wizardManager && wizardManager.virtualLists) {
+                wizardManager.virtualLists['language-include']?.search(query);
+                wizardManager.virtualLists['language-exclude']?.search(query);
+              }
+            }
+          }
         },
         {
           searchId: 'search-tags-other',
-          includeListId: 'wizard-tags-list-other-include',
-          excludeListId: 'wizard-tags-list-other-exclude',
           itemSelector: 'label',
           noResultsText: 'No other tags found matching your search.',
           noItemsText: 'No other tags available.',
-          parentContainerId: 'tag-category-other-container'
+          parentContainerId: 'tag-category-other-container',
+          options: {
+            customSearchHandler: (query) => {
+              const wizardManager = this.uiManager.wizardManager;
+              if (wizardManager && wizardManager.virtualLists) {
+                wizardManager.virtualLists['other-include']?.search(query);
+                wizardManager.virtualLists['other-exclude']?.search(query);
+              }
+            }
+          }
         },
         {
           searchId: 'search-priority-tags',
@@ -104,7 +106,14 @@ class SearchManager {
         listId: 'results-list',
         itemSelector: 'label',
         noResultsText: 'No results found matching your search.',
-        noItemsText: 'No results match your filters.'
+        noItemsText: 'No results match your filters.',
+        options: {
+          customSearchHandler: (query) => {
+            if (this.uiManager.downloadUI && this.uiManager.downloadUI.virtualList) {
+              this.uiManager.downloadUI.virtualList.search(query);
+            }
+          }
+        }
       }
     };
 
@@ -114,50 +123,41 @@ class SearchManager {
     let firstSearchInputFocused = false;
 
     if (viewId === 'wizard') {
-      const processedSearchIds = new Set();
       configs.forEach(config => {
-        if (processedSearchIds.has(config.searchId)) return;
-        processedSearchIds.add(config.searchId);
+        const listIds = config.listId ? [config.listId] : [];
+        this.searchInstances[config.searchId] = new Search(
+          config.searchId,
+          listIds,
+          config.itemSelector,
+          config.noResultsText,
+          config.noItemsText,
+          `${config.searchId}-clear`,
+          null,
+          config.options
+        );
 
         const searchInput = document.getElementById(config.searchId);
-        if (!searchInput) return;
-
-        if (config.includeListId) {
-          const includeListEl = document.getElementById(config.includeListId);
-          if (includeListEl) {
-            this.searchInstances[config.includeListId] = new Search(config.searchId, config.includeListId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
-          }
-        }
-        if (config.excludeListId) {
-          const excludeListEl = document.getElementById(config.excludeListId);
-          if (excludeListEl) {
-            this.searchInstances[config.excludeListId] = new Search(config.searchId, config.excludeListId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
-          }
-        }
-        if (config.listId && !config.includeListId) {
-          const listEl = document.getElementById(config.listId);
-          if (listEl) {
-            this.searchInstances[config.listId] = new Search(config.searchId, config.listId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
-          }
-        }
-
         const parentContainer = document.getElementById(config.parentContainerId);
+
         if (parentContainer && searchInput) {
           const listContainers = [];
-          if (config.includeListId) listContainers.push(document.getElementById(config.includeListId));
-          if (config.excludeListId) listContainers.push(document.getElementById(config.excludeListId));
-          if (config.listId && !config.includeListId) listContainers.push(document.getElementById(config.listId));
+          if (config.listId) {
+            listContainers.push(document.getElementById(config.listId));
+          } else if (config.options && config.options.customSearchHandler) {
+            const category = config.searchId.split('-')[2]; // e.g., 'region' from 'search-tags-region'
+            listContainers.push(document.getElementById(`wizard-tags-list-${category}-include`));
+            listContainers.push(document.getElementById(`wizard-tags-list-${category}-exclude`));
+          }
 
-          const filteredListContainers = listContainers.filter(el => el !== null);
+          const filteredListContainers = listContainers.filter(el => el);
+          if (filteredListContainers.length > 0) {
+            const listToInputMap = {};
+            filteredListContainers.forEach(c => { listToInputMap[c.id] = config.searchId; });
 
-          const listToInputMap = {};
-          if (config.includeListId) listToInputMap[config.includeListId] = config.searchId;
-          if (config.excludeListId) listToInputMap[config.excludeListId] = config.searchId;
-          if (config.listId) listToInputMap[config.listId] = config.searchId;
-
-          const keyboardNavigator = new KeyboardNavigator(filteredListContainers, config.itemSelector, [searchInput], this.uiManager, [], listToInputMap);
-          parentContainer.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
-          searchInput.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
+            const keyboardNavigator = new KeyboardNavigator(filteredListContainers, config.itemSelector, [searchInput], this.uiManager, [], listToInputMap);
+            parentContainer.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
+            searchInput.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
+          }
 
           if (!firstSearchInputFocused) {
             searchInput.focus();
@@ -167,13 +167,17 @@ class SearchManager {
       });
     } else {
       (Array.isArray(configs) ? configs : [configs]).forEach(config => {
-        this.searchInstances[config.listId] = new Search(config.searchId, config.listId, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`);
+        const instanceKey = config.listIds ? config.searchId : config.listId;
+        const listContainerIdsToPass = config.listIds || [config.listId];
+        const headerContainerIdToPass = (viewId === 'directories' && config.listIds) ? 'files-header-container' : null;
 
-        const listContainer = document.getElementById(config.listId);
+        this.searchInstances[instanceKey] = new Search(config.searchId, listContainerIdsToPass, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`, headerContainerIdToPass, config.options);
+
+        const listContainersForKeyboard = listContainerIdsToPass.map(id => document.getElementById(id)).filter(el => el !== null);
         const searchInput = document.getElementById(config.searchId);
-        if (listContainer && searchInput) {
-          const keyboardNavigator = new KeyboardNavigator(listContainer, config.itemSelector, [searchInput], this.uiManager);
-          listContainer.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
+        if (listContainersForKeyboard.length > 0 && searchInput) {
+          const keyboardNavigator = new KeyboardNavigator(listContainersForKeyboard, config.itemSelector, [searchInput], this.uiManager);
+          listContainersForKeyboard.forEach(container => container.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator)));
           searchInput.addEventListener('keydown', keyboardNavigator.handleKeyDown.bind(keyboardNavigator));
           if (!firstSearchInputFocused) {
             searchInput.focus();
@@ -199,3 +203,4 @@ class SearchManager {
 }
 
 export default SearchManager;
+

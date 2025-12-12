@@ -27,13 +27,29 @@ class BreadcrumbManager {
                 </svg>
             </span>
         `;
-        let html = `<span title="Myrient Downloader" class="truncate cursor-pointer hover:text-orange-500 transition-all duration-200" data-view="archives" data-step="0">Myrient Downloader</span>`;
-        if (stateService.get('archive').name) {
-            html += `${separator}<span title="${stateService.get('archive').name}" class="truncate cursor-pointer hover:text-orange-500 transition-all duration-200" data-view="directories" data-step="1">${stateService.get('archive').name}</span>`;
-        }
-        if (stateService.get('directory').name) {
-            html += `${separator}<span title="${stateService.get('directory').name}" class="truncate hover:text-orange-500 transition-all duration-200">${stateService.get('directory').name}</span>`;
-        }
+        const directoryStack = stateService.get('directoryStack') || [];
+        const currentView = stateService.get('currentView');
+        const downloadFromHere = stateService.get('downloadFromHere');
+
+        const isRootView = directoryStack.length === 0;
+        const rootClickableClasses = isRootView ? '' : 'cursor-pointer hover:text-orange-500';
+        let html = `<span title="Myrient Downloader" class="truncate ${rootClickableClasses} transition-all duration-200" data-step="0">Myrient Downloader</span>`;
+
+        directoryStack.forEach((item, index) => {
+            const isLast = index === directoryStack.length - 1;
+            let clickableClasses = '';
+
+            if (!isLast) {
+                clickableClasses = 'cursor-pointer hover:text-orange-500';
+            } else {
+                const onWizardOrResults = currentView === 'wizard' || currentView === 'results';
+                if (onWizardOrResults && downloadFromHere) {
+                    clickableClasses = 'cursor-pointer hover:text-orange-500';
+                }
+            }
+
+            html += `${separator}<span title="${item.name}" class="truncate transition-all duration-200 ${clickableClasses}" data-step="${index + 1}">${item.name}</span>`;
+        });
         this.breadcrumbs.innerHTML = html;
     }
 }

@@ -2,6 +2,7 @@ import stateService from '../StateService.js';
 import filterPersistenceService from '../services/FilterPersistenceService.js';
 import toastManager from './ToastManager.js';
 import KeyboardNavigator from '../ui/KeyboardNavigator.js';
+import VirtualList from '../ui/VirtualList.js';
 
 /**
  * Manages the wizard interface, handling setup of filters, tag categorization, and priority lists.
@@ -14,6 +15,7 @@ class WizardManager {
    */
   constructor(uiManager) {
     this.uiManager = uiManager;
+    this.virtualLists = {};
 
     stateService.subscribe('savedFilters', (updatedFilters) => {
       this._repopulatePresetsSelect(updatedFilters);
@@ -70,10 +72,10 @@ class WizardManager {
     }
 
     const previousSelection = this.presetsSelect.value;
-    const currentArchiveHref = stateService.get('archive')?.href;
-    const currentDirectoryHref = stateService.get('directory')?.href;
+    const directoryStack = stateService.get('directoryStack') || [];
+    const fullPath = directoryStack.map(item => item.href).join('');
 
-    const relevantFilters = filters ? filters.filter(f => f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref) : [];
+    const relevantFilters = filters ? filters.filter(f => f.fullPath === fullPath) : [];
 
     if (relevantFilters.length === 0) {
       this.presetsSelect.innerHTML = '<option value="">No saved presets...</option>';
@@ -160,7 +162,9 @@ class WizardManager {
       const selectedPresetName = this.presetsSelect.value;
       this.savePresetNameInput.value = selectedPresetName;
       if (selectedPresetName) {
-        const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName);
+        const directoryStack = stateService.get('directoryStack') || [];
+        const fullPath = directoryStack.map(item => item.href).join('');
+        const preset = stateService.get('savedFilters').find(f => f.name === selectedPresetName && f.fullPath === fullPath);
         if (preset) {
           stateService.set('includeTags', JSON.parse(JSON.stringify(preset.filterSettings.include_tags)));
           stateService.set('excludeTags', JSON.parse(JSON.stringify(preset.filterSettings.exclude_tags)));
@@ -181,13 +185,15 @@ class WizardManager {
       const presetName = this.savePresetNameInput.value.trim();
       if (!presetName) return alert('Please enter a name for the preset.');
 
-      const currentArchiveHref = stateService.get('archive')?.href;
-      const currentDirectoryHref = stateService.get('directory')?.href;
-      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName && f.archiveHref === currentArchiveHref && f.directoryHref === currentDirectoryHref);
+      const directoryStack = stateService.get('directoryStack') || [];
+      const fullPath = directoryStack.map(item => item.href).join('');
+      const pathDisplayName = directoryStack.map(item => item.name).join(' / ');
+
+      const existingPreset = stateService.get('savedFilters').find(f => f.name === presetName && f.fullPath === fullPath);
 
       if (existingPreset) {
         const userConfirmed = await this.uiManager.showConfirmationModal(
-          `A preset named "${presetName}" already exists for this platform. Do you want to overwrite it?`,
+          `A preset named "${presetName}" already exists for this path. Do you want to overwrite it?`,
           { confirmText: 'Overwrite' }
         );
         if (!userConfirmed) {
@@ -197,10 +203,8 @@ class WizardManager {
 
       const newFilter = {
         name: presetName,
-        archiveName: stateService.get('archive')?.name,
-        archiveHref: stateService.get('archive')?.href,
-        directoryName: stateService.get('directory')?.name,
-        directoryHref: stateService.get('directory')?.href,
+        fullPath: fullPath,
+        pathDisplayName: pathDisplayName,
         filterSettings: {
           include_tags: stateService.get('includeTags'),
           exclude_tags: stateService.get('excludeTags'),
@@ -294,7 +298,7 @@ class WizardManager {
   /**
    * Sets up the wizard by initializing UI elements, loading presets, and attaching event listeners.
    */
-  setupWizard() {
+  async setupWizard() {
     this.presetsSelect = document.getElementById('filter-presets-select');
     this.savePresetNameInput = document.getElementById('save-preset-name');
     this.savePresetBtn = document.getElementById('save-preset-btn');
@@ -307,7 +311,21 @@ class WizardManager {
     this.clearStringIncludeListBtn = document.getElementById('clear-string-include-list-btn');
     this.clearStringExcludeListBtn = document.getElementById('clear-string-exclude-list-btn');
 
-    this._loadAndPopulatePresets();
+    const categories = ['region', 'language', 'other'];
+    categories.forEach(category => {
+      ['include', 'exclude'].forEach(type => {
+        const elementId = `wizard-tags-list-${category}-${type}`;
+        const listEl = document.getElementById(elementId);
+        if (listEl) {
+          this.virtualLists[`${category}-${type}`] = new VirtualList(listEl, {
+            rowRenderer: this._rowRenderer.bind(this),
+            rowHeight: 44,
+          });
+        }
+      });
+    });
+
+    await this._loadAndPopulatePresets();
     this._updateUIFromState();
 
     this._attachEventListeners();
@@ -346,6 +364,7 @@ class WizardManager {
     this.stringExcludeInput.addEventListener('keydown', stringFilterNavigator.handleKeyDown.bind(stringFilterNavigator));
 
     this.uiManager.searchManager.refreshSearchPlaceholders();
+    this.uiManager.hideLoading();
   }
 
   /**
@@ -357,7 +376,7 @@ class WizardManager {
     if (e.target.type !== 'checkbox') return;
     const listContainer = e.currentTarget;
     const category = listContainer.id.split('-')[3];
-    const { name: tagName } = e.target.parentElement.dataset;
+    const { name: tagName } = e.target.closest('label').dataset;
     const { tagType } = e.target.dataset;
     const { checked: isChecked } = e.target;
 
@@ -385,23 +404,31 @@ class WizardManager {
    * @private
    */
   _massUpdateTags(category, type, shouldSelect) {
-    const listEl = document.getElementById(`wizard-tags-list-${category}-${type}`);
+    const virtualList = this.virtualLists[`${category}-${type}`];
+    if (!virtualList) return;
+
+    const visibleItems = virtualList.items;
+    const visibleTags = visibleItems.map(item => item.tag);
+
     const includeTags = new Set(stateService.get('includeTags')[category]);
     const excludeTags = new Set(stateService.get('excludeTags')[category]);
-
-    listEl.querySelectorAll('label:not(.hidden) input[type=checkbox]').forEach(checkbox => {
-      const tagName = checkbox.parentElement.dataset.name;
+  
+    const tagsToUpdate = type === 'include' ? includeTags : excludeTags;
+    const opposingTags = type === 'include' ? excludeTags : includeTags;
+  
+    visibleTags.forEach(tagName => {
       if (shouldSelect) {
-        if (type === 'include' && !excludeTags.has(tagName)) includeTags.add(tagName);
-        else if (type === 'exclude' && !includeTags.has(tagName)) excludeTags.add(tagName);
+        if (!opposingTags.has(tagName)) {
+          tagsToUpdate.add(tagName);
+        }
       } else {
-        if (type === 'include') includeTags.delete(tagName);
-        else excludeTags.delete(tagName);
+        tagsToUpdate.delete(tagName);
       }
     });
-
+  
     stateService.get('includeTags')[category] = Array.from(includeTags);
     stateService.get('excludeTags')[category] = Array.from(excludeTags);
+  
     this._updateUIFromState();
   }
 
@@ -418,37 +445,49 @@ class WizardManager {
 
     if (!includeListEl || !excludeListEl) return;
 
-    includeListEl.innerHTML = '';
-    excludeListEl.innerHTML = '';
     allCategoryTags.sort((a, b) => a.localeCompare(b));
 
-    const renderTagItem = (tag, type) => {
-      const isIncluded = currentIncludeTags.includes(tag);
-      const isExcluded = currentExcludeTags.includes(tag);
+    const createItems = (type) => allCategoryTags.map(tag => ({
+      tag,
+      type,
+      category,
+      isIncluded: currentIncludeTags.includes(tag),
+      isExcluded: currentExcludeTags.includes(tag),
+    }));
 
-      const el = document.createElement('label');
-      el.className = 'flex items-center p-2 bg-neutral-900 rounded-md space-x-2 cursor-pointer border border-transparent hover:border-accent-500 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent-500 select-none';
-      el.dataset.name = tag;
-      el.tabIndex = 0;
+    this.virtualLists[`${category}-include`].updateItems(createItems('include'));
+    this.virtualLists[`${category}-exclude`].updateItems(createItems('exclude'));
+  }
 
-      let checkboxHtml = `<input type="checkbox" class="h-4 w-4" data-tag-type="${type}"`;
-      if ((type === 'include' && isIncluded) || (type === 'exclude' && isExcluded)) {
-        checkboxHtml += ' checked';
-      }
-      if ((type === 'include' && isExcluded) || (type === 'exclude' && isIncluded)) {
-        checkboxHtml += ' disabled';
-        el.classList.add('opacity-50', 'cursor-not-allowed');
-        el.style.pointerEvents = 'none';
-      }
-      checkboxHtml += '>';
-      el.innerHTML = `${checkboxHtml}<span class="text-neutral-300">${tag}</span>`;
-      return el;
-    };
+  /**
+   * Renders a single tag item for the virtual lists.
+   * @param {object} item - The tag item data.
+   * @returns {HTMLElement} The rendered DOM element for the row.
+   * @private
+   */
+  _rowRenderer(item) {
+    const { tag, type, isIncluded, isExcluded } = item;
 
-    allCategoryTags.forEach(tag => {
-      includeListEl.appendChild(renderTagItem(tag, 'include'));
-      excludeListEl.appendChild(renderTagItem(tag, 'exclude'));
-    });
+    const el = document.createElement('label');
+    el.className = 'flex items-center p-2 bg-neutral-900 rounded-md space-x-2 cursor-pointer border border-transparent hover:border-accent-500 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent-500 select-none';
+    el.dataset.name = tag;
+
+    let checkboxHtml = `<input type="checkbox" class="h-4 w-4" data-tag-type="${type}"`;
+    if ((type === 'include' && isIncluded) || (type === 'exclude' && isExcluded)) {
+      checkboxHtml += ' checked';
+    }
+    if ((type === 'include' && isExcluded) || (type === 'exclude' && isIncluded)) {
+      checkboxHtml += ' disabled';
+      el.classList.add('opacity-50', 'cursor-not-allowed');
+      el.style.pointerEvents = 'none';
+    }
+    checkboxHtml += '>';
+    el.innerHTML = `${checkboxHtml}<span class="text-neutral-300">${tag}</span>`;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.height = '44px';
+    wrapper.appendChild(el);
+    return wrapper;
   }
 
   /**

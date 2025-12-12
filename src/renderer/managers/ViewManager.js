@@ -29,7 +29,7 @@ class ViewManager {
    * @returns {Promise<void>} A promise that resolves when all views are loaded.
    */
   async loadViews() {
-    const viewFiles = ['archives', 'directories', 'wizard', 'results'];
+    const viewFiles = ['directories', 'wizard', 'results'];
     for (const view of viewFiles) {
       const response = await fetch(`./views/${view}.html`);
       this.views[view] = await response.text();
@@ -47,6 +47,9 @@ class ViewManager {
   showView(viewId, breadcrumbManager, uiManager, searchManager) {
     document.querySelector('main').scrollTop = 0;
     if (this.views[viewId]) {
+      if (this.currentView === 'results' && uiManager.downloadUI) {
+        uiManager.downloadUI.destroy();
+      }
       if (this.currentView) {
         const prevViewElement = this.viewContainer.querySelector('.view.active');
         if (prevViewElement) {

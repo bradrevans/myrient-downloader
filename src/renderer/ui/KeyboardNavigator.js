@@ -36,7 +36,8 @@ class KeyboardNavigator {
    */
   getVisibleItemsInContainer(container) {
     if (!container) return [];
-    return Array.from(container.querySelectorAll(`${this.itemSelector}:not(.hidden)`));
+    return Array.from(container.querySelectorAll(`${this.itemSelector}:not(.hidden)`))
+      .filter(item => item.offsetHeight > 0 || item.offsetWidth > 0);
   }
 
   /**
