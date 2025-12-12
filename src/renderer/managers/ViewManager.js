@@ -47,6 +47,9 @@ class ViewManager {
   showView(viewId, breadcrumbManager, uiManager, searchManager) {
     document.querySelector('main').scrollTop = 0;
     if (this.views[viewId]) {
+      if (this.currentView === 'results' && uiManager.downloadUI) {
+        uiManager.downloadUI.destroy();
+      }
       if (this.currentView) {
         const prevViewElement = this.viewContainer.querySelector('.view.active');
         if (prevViewElement) {

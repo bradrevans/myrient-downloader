@@ -20,7 +20,7 @@ export default class Search {
    * @param {string} clearId The ID of the button to clear the search input.
    * @param {string} [headerContainerId] Optional: The ID of a header container whose visibility should be toggled based on search results.
    */
-  constructor(inputId, listContainerIds, itemSelector, noResultsText, noItemsText, clearId, headerContainerId = null) {
+  constructor(inputId, listContainerIds, itemSelector, noResultsText, noItemsText, clearId, headerContainerId = null, options = {}) {
     this.searchInput = document.getElementById(inputId);
     this.listContainers = listContainerIds.map(id => document.getElementById(id)).filter(el => el !== null);
     this.itemSelector = itemSelector;
@@ -28,6 +28,7 @@ export default class Search {
     this.noItemsText = noItemsText;
     this.clearBtn = document.getElementById(clearId);
     this.headerContainer = headerContainerId ? document.getElementById(headerContainerId) : null;
+    this.customSearchHandler = options.customSearchHandler;
 
     this.boundHandleSearch = this.handleSearch.bind(this);
     this.boundClearButtonToggle = () => {
@@ -44,7 +45,7 @@ export default class Search {
       }
     };
 
-    if (this.searchInput && this.listContainers.length > 0) {
+    if (this.searchInput && (this.listContainers.length > 0 || this.customSearchHandler)) {
       this.searchInput.addEventListener('input', this.boundHandleSearch);
       this.handleSearch(); // Initial search on load
     }
@@ -81,8 +82,14 @@ export default class Search {
    * @memberof Search
    */
   handleSearch() {
-    const query = this.searchInput.value.toLowerCase();
-    const searchTerms = query.split(' ').filter(term => term.length > 0);
+    const query = this.searchInput.value;
+    if (this.customSearchHandler) {
+      this.customSearchHandler(query);
+      return;
+    }
+
+    const lowerCaseQuery = query.toLowerCase();
+    const searchTerms = lowerCaseQuery.split(' ').filter(term => term.length > 0);
     let totalVisibleCount = 0;
     let totalItemsCount = 0;
     let visibleFilesCount = 0;

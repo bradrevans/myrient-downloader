@@ -97,7 +97,14 @@ class SearchManager {
         listId: 'results-list',
         itemSelector: 'label',
         noResultsText: 'No results found matching your search.',
-        noItemsText: 'No results match your filters.'
+        noItemsText: 'No results match your filters.',
+        options: {
+          customSearchHandler: (query) => {
+            if (this.uiManager.downloadUI && this.uiManager.downloadUI.virtualList) {
+              this.uiManager.downloadUI.virtualList.search(query);
+            }
+          }
+        }
       }
     };
 
@@ -164,7 +171,7 @@ class SearchManager {
         const listContainerIdsToPass = config.listIds || [config.listId]; // Pass array of IDs
         const headerContainerIdToPass = (viewId === 'directories' && config.listIds) ? 'files-header-container' : null;
         
-        this.searchInstances[instanceKey] = new Search(config.searchId, listContainerIdsToPass, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`, headerContainerIdToPass);
+        this.searchInstances[instanceKey] = new Search(config.searchId, listContainerIdsToPass, config.itemSelector, config.noResultsText, config.noItemsText, `${config.searchId}-clear`, headerContainerIdToPass, config.options);
 
         const listContainersForKeyboard = listContainerIdsToPass.map(id => document.getElementById(id)).filter(el => el !== null);
         const searchInput = document.getElementById(config.searchId);
