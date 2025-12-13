@@ -24,6 +24,7 @@ export default class DownloadUI {
     this.downloadOptionsState = null;
     this.virtualList = null;
     this.selectedFileNames = new Set();
+    this.fileLookupMap = null;
     this._setupEventListeners();
     if (window.electronAPI && window.electronAPI.onExtractionStarted) {
       window.electronAPI.onExtractionStarted(() => {
@@ -397,6 +398,8 @@ export default class DownloadUI {
     elements.resultsFileCount.textContent = finalFileList.length;
     elements.resultsTotalCount.textContent = this.stateService.get('allFiles').length;
 
+    this.fileLookupMap = new Map(finalFileList.map(f => [f.name_raw.trim(), f]));
+
     // Set the initial selection state before rendering
     this.stateService.setSelectedFilesForDownload([...finalFileList]);
     this.selectedFileNames = new Set(finalFileList.map(f => f.name_raw));
@@ -492,8 +495,7 @@ export default class DownloadUI {
           this.selectedFileNames.delete(name);
         }
 
-        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
-        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => this.fileLookupMap.get(name)).filter(Boolean);
 
         this.stateService.setSelectedFilesForDownload(newSelectedFiles);
 
@@ -650,8 +652,7 @@ export default class DownloadUI {
         const displayedItems = this.virtualList.items;
         displayedItems.forEach(item => this.selectedFileNames.add(item.name_raw));
         
-        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
-        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => this.fileLookupMap.get(name)).filter(Boolean);
         this.stateService.setSelectedFilesForDownload(newSelectedFiles);
 
         this._updateTotalDownloadSizeDisplay();
@@ -666,8 +667,7 @@ export default class DownloadUI {
         
         displayedItemNames.forEach(name => this.selectedFileNames.delete(name));
         
-        const allFilesMap = new Map(this.stateService.get('finalFileList').map(f => [f.name_raw, f]));
-        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => allFilesMap.get(name)).filter(Boolean);
+        const newSelectedFiles = Array.from(this.selectedFileNames).map(name => this.fileLookupMap.get(name)).filter(Boolean);
         this.stateService.setSelectedFilesForDownload(newSelectedFiles);
 
         this._updateTotalDownloadSizeDisplay();
@@ -887,5 +887,6 @@ export default class DownloadUI {
       this.virtualList.destroy();
       this.virtualList = null;
     }
+    this.fileLookupMap = null;
   }
 }
