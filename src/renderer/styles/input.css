@@ -5,7 +5,6 @@
 body {
   background-color: theme('colors.primary');
   color: theme('colors.secondary');
-  overflow: hidden;
 }
 
 .view {
@@ -73,7 +72,7 @@ body {
 }
 
 .sticky-view-header {
-  @apply sticky z-0 pt-6 pb-4 bg-primary -mx-8 px-8 top-0;
+  @apply sticky z-10 pt-6 pb-4 bg-primary -mx-8 px-8 top-0;
 }
 
 progress {
@@ -182,7 +181,7 @@ input[type="number"] {
 }
 
 .overlay-transition {
-  @apply fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30;
+  @apply absolute inset-0 flex items-center justify-center bg-black bg-opacity-50;
   opacity: 0;
   pointer-events: none;
   /* Disable interaction when hidden */
@@ -194,7 +193,6 @@ input[type="number"] {
 .overlay-transition.open {
   opacity: 1;
   pointer-events: auto;
-  /* Enable interaction when open */
   backdrop-filter: blur(4px);
 }
 
