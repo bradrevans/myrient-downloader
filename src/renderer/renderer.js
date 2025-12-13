@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
 
       if (consecutiveErrorCount >= 3) {
-        modalText += '<br><br>If you continue to see this error then Myrient may restrict access in your country or you could be getting blocked by your firwall, router or internet service provider. Please try using a desktop VPN to resolve the issue.';
+        modalText += '<br><br>If you continue to see this error, you could be getting blocked by your firwall, router or internet service provider. Please try using a desktop VPN to resolve the issue.';
         modalOptions.cancelText = 'Close App';
         modalOptions.cancelClass = 'btn-danger';
       }
