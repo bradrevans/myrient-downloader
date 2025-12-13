@@ -84,7 +84,15 @@ class StateService {
       throttleSpeed: 100,
       throttleUnit: 'KB/s',
       savedFilters: [],
+      christmasEffectActive: null, // Default value
     };
+
+    // Load persisted state from localStorage
+    const storedChristmasEffectActive = localStorage.getItem('christmasEffectActive');
+    if (storedChristmasEffectActive !== null) {
+      // localStorage stores strings, so parse it back to a boolean
+      this.state.christmasEffectActive = JSON.parse(storedChristmasEffectActive);
+    }
   }
 
   /**
@@ -158,6 +166,12 @@ class StateService {
    */
   set(key, value) {
     this.state[key] = value;
+
+    // Persist specific keys to localStorage
+    if (key === 'christmasEffectActive') {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
     this.notify(key, value);
   }
 

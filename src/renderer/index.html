@@ -12,7 +12,8 @@
 </head>
 
 <body class="antialiased">
-  <header class="p-4 bg-neutral-800 border-b border-neutral-700 h-16 flex items-center select-none app-draggable-area">
+  <header
+    class="p-4 bg-neutral-800 border-b border-neutral-700 h-16 flex items-center select-none app-draggable-area relative z-50">
     <button id="header-back-btn"
       class="invisible text-lg font-semibold text-white hover:text-accent-500 mr-4 transition-all duration-200 app-non-draggable-area">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
@@ -22,83 +23,30 @@
     </button>
     <nav id="breadcrumbs" class="text-base font-semibold text-white flex items-center flex-shrink min-w-0"></nav>
     <div id="window-controls" class="flex-shrink-0 flex-grow flex justify-end items-center relative">
-      <button id="presets-btn" class="action-btn app-non-draggable-area">
+      <button id="snowflake-btn"
+        class="action-btn app-non-draggable-area hidden text-neutral-400 hover:text-snowflake-accent"
+        aria-label="Toggle Christmas Snowflakes">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+          <path
+            d="M12 8V16M12 8V2M12 8L7 3M12 8L17 3M12 16V22M12 16L7 21M12 16L17 21M16 12H8M16 12H22M16 12L21 7M16 12L21 17M8 12H2M8 12L3 7M8 12L3 17" />
+        </svg>
+      </button>
+      <button id="presets-btn" class="action-btn app-non-draggable-area text-white">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path stroke="currentColor" stroke-linejoin="round" stroke-width="2" d="M20 4H4v2l6 6v8.5l4-2.5v-6l6-6V4z" />
         </svg>
       </button>
-      <button id="settings-btn" class="action-btn app-non-draggable-area">
+      <button id="settings-btn" class="action-btn app-non-draggable-area text-white">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       </button>
-      <div id="settings-overlay" class="overlay-transition fixed inset-x-0 bottom-0 top-16 bg-black bg-opacity-50 z-40">
-      </div>
-      <div id="settings-panel"
-        class="fixed top-16 right-0 w-64 h-[calc(100vh-4rem)] bg-neutral-900 shadow-lg z-50 transform translate-x-full transition-transform duration-300 ease-in-out">
-        <div class="flex justify-between items-center p-4 border-b border-neutral-700">
-          <h3 class="text-white text-lg font-bold">Settings</h3>
-          <button id="close-settings-btn" class="control-btn hover:bg-danger-500">
-            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <h6 id="zoom-heading" class="text-white text-base font-bold mb-2">Zoom</h6>
-          <div class="flex items-center justify-between mb-2">
-            <button id="zoom-out-btn"
-              class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">-</button>
-            <input type="number" id="zoom-level-display"
-              class="text-white mx-1 w-16 text-center text-base bg-neutral-800 border-none rounded appearance-none focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-neutral-800"
-              value="100" min="10" max="400" step="10">
-            <button id="zoom-in-btn"
-              class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">+</button>
-            <button id="zoom-reset-btn"
-              class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">&#x21BA;</button>
-          </div>
-        </div>
-        <div class="p-4 border-t border-neutral-700">
-          <h6 class="text-white text-base font-bold mb-2">About</h6>
-          <p class="text-neutral-400 text-sm">Version: <span id="app-version"></span></p>
-          <button id="check-for-updates-btn" class="btn btn-secondary btn-sm mt-2">Check for Updates</button>
-          <p id="update-status" class="text-neutral-400 text-sm mt-2"></p>
-        </div>
-      </div>
-      <div id="presets-overlay" class="overlay-transition fixed inset-x-0 bottom-0 top-16 bg-black bg-opacity-50 z-40">
-      </div>
-      <div id="presets-panel"
-        class="fixed top-16 right-0 w-4/5 h-[calc(100vh-4rem)] bg-neutral-900 shadow-lg z-50 transform translate-x-full transition-transform duration-300 ease-in-out will-change-transform">
-        <div class="flex justify-between items-center p-4 border-b border-neutral-700">
-          <h3 id="manage-presets-heading" class="text-white text-lg font-bold">Manage Presets</h3>
-          <button id="close-presets-btn" class="control-btn hover:bg-danger-500">
-            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div id="presets-content" class="p-4 text-white">
-          <div class="flex space-x-2 mt-2 mb-4">
-            <button id="select-all-btn" class="btn btn-secondary">Select All</button>
-            <button id="deselect-all-btn" class="btn btn-secondary">Deselect All</button>
-          </div>
 
-          <div id="presets-list" class="mb-4"></div>
 
-          <div class="flex space-x-2">
-            <button id="import-presets-btn" class="btn btn-primary">Import</button>
-            <button id="export-all-btn" class="btn btn-secondary">Export All</button>
-            <button id="export-selected-btn" class="btn btn-secondary">Export Selected</button>
-            <button id="delete-selected-btn" class="btn btn-danger">Delete Selected</button>
-          </div>
-        </div>
-      </div>
+
       <div class="w-px h-6 bg-neutral-700 mx-2"></div>
       <button id="minimize-btn" class="control-btn hover:bg-neutral-700 app-non-draggable-area">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -121,21 +69,87 @@
     </div>
   </header>
 
+  <div id="settings-overlay" class="overlay-transition fixed inset-x-0 bottom-0 top-16 bg-black bg-opacity-50 z-30">
+  </div>
+  <div id="settings-panel"
+    class="fixed top-16 right-0 w-64 h-[calc(100vh-4rem)] bg-neutral-900 shadow-lg z-40 transform translate-x-full transition-transform duration-300 ease-in-out">
+    <div class="flex justify-between items-center p-4 border-b border-neutral-700">
+      <h3 class="text-white text-lg font-bold">Settings</h3>
+      <button id="close-settings-btn" class="control-btn hover:bg-danger-500">
+        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="p-4">
+      <h6 id="zoom-heading" class="text-white text-base font-bold mb-2">Zoom</h6>
+      <div class="flex items-center justify-between mb-2">
+        <button id="zoom-out-btn"
+          class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">-</button>
+        <input type="number" id="zoom-level-display"
+          class="text-white mx-1 w-16 text-center text-base bg-neutral-800 border-none rounded appearance-none focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-neutral-800"
+          value="100" min="10" max="400" step="10">
+        <button id="zoom-in-btn"
+          class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">+</button>
+        <button id="zoom-reset-btn"
+          class="text-white hover:text-accent-500 px-2 py-1 rounded app-non-draggable-area bg-transparent border-none text-lg">&#x21BA;</button>
+      </div>
+    </div>
+    <div class="p-4 border-t border-neutral-700">
+      <h6 class="text-white text-base font-bold mb-2">About</h6>
+      <p class="text-neutral-400 text-sm">Version: <span id="app-version"></span></p>
+      <button id="check-for-updates-btn" class="btn btn-secondary btn-sm mt-2">Check for Updates</button>
+      <p id="update-status" class="text-neutral-400 text-sm mt-2"></p>
+    </div>
+  </div>
+  <div id="presets-overlay" class="overlay-transition fixed inset-x-0 bottom-0 top-16 bg-black bg-opacity-50 z-30">
+  </div>
+  <div id="presets-panel"
+    class="fixed top-16 right-0 w-4/5 h-[calc(100vh-4rem)] bg-neutral-900 shadow-lg z-40 transform translate-x-full transition-transform duration-300 ease-in-out will-change-transform">
+    <div class="flex justify-between items-center p-4 border-b border-neutral-700">
+      <h3 id="manage-presets-heading" class="text-white text-lg font-bold">Manage Presets</h3>
+      <button id="close-presets-btn" class="control-btn hover:bg-danger-500">
+        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div id="presets-content" class="p-4 text-white">
+      <div class="flex space-x-2 mt-2 mb-4">
+        <button id="select-all-btn" class="btn btn-secondary">Select All</button>
+        <button id="deselect-all-btn" class="btn btn-secondary">Deselect All</button>
+      </div>
+
+      <div id="presets-list" class="mb-4"></div>
+
+      <div class="flex space-x-2">
+        <button id="import-presets-btn" class="btn btn-primary">Import</button>
+        <button id="export-all-btn" class="btn btn-secondary">Export All</button>
+        <button id="export-selected-btn" class="btn btn-secondary">Export Selected</button>
+        <button id="delete-selected-btn" class="btn btn-danger">Delete Selected</button>
+      </div>
+    </div>
+  </div>
+
   <main class="pt-0 p-8 h-[calc(100vh-8rem)] overflow-y-auto">
     <div id="loading-spinner"
-      class="hidden absolute inset-0 bg-neutral-900 bg-opacity-75 flex-col flex items-center justify-center z-50">
+      class="hidden absolute inset-0 bg-neutral-900 bg-opacity-75 flex-col flex items-center justify-center z-80">
       <div id="loading-text-container" class="relative">
-          <div id="loading-main-container" class="flex items-center">
-            <div class="loading-spinner-animation"></div>
-            <span id="loading-text" class="text-white text-xl ml-4">Loading...</span>
-          </div>
-          <span id="loading-subtext" class="absolute left-1/2 -translate-x-1/2 top-full text-neutral-400 text-sm mt-2 w-max max-w-xs text-center"></span>
+        <div id="loading-main-container" class="flex items-center">
+          <div class="loading-spinner-animation"></div>
+          <span id="loading-text" class="text-white text-xl ml-4">Loading...</span>
         </div>
+        <span id="loading-subtext"
+          class="absolute left-1/2 -translate-x-1/2 top-full text-neutral-400 text-sm mt-2 w-max max-w-xs text-center"></span>
+      </div>
     </div>
 
-    <div id="confirmation-modal"
-      class="overlay-transition bg-black bg-opacity-50 z-50">
-      <div class="modal-transition bg-neutral-800 p-6 rounded-lg shadow-lg max-w-md min-w-xs">
+    <div id="confirmation-modal" class="overlay-transition bg-black bg-opacity-50 z-60">
+      <div class="modal-transition bg-neutral-800 p-6 rounded-lg shadow-lg max-w-md min-w-xs z-70 relative">
         <h3 id="confirmation-modal-title" class="text-xl font-bold text-white mb-4">Confirmation</h3>
         <p id="confirmation-modal-message" class="text-neutral-300 mb-6"></p>
         <div class="flex justify-end space-x-4">
@@ -148,7 +162,7 @@
     <div id="view-container"></div>
   </main>
 
-  <footer class="footer h-16 flex-shrink-0">
+  <footer class="footer h-16 flex-shrink-0 relative z-20">
     <p>
       Created by Brad Evans
       <span> | </span>
@@ -163,7 +177,7 @@
 
   <script type="module" src="./renderer.js"></script>
 
-  <div id="toast-container" class="fixed bottom-0 right-0 p-4 space-y-2 w-full max-w-xs z-50"></div>
+  <div id="toast-container" class="fixed bottom-0 right-0 p-4 space-y-2 w-full max-w-xs z-90"></div>
 </body>
 
 </html>

@@ -3,6 +3,8 @@ import ModalManager from '../managers/ModalManager.js';
 import BreadcrumbManager from '../managers/BreadcrumbManager.js';
 import SearchManager from '../managers/SearchManager.js';
 import WizardManager from '../managers/WizardManager.js';
+import SeasonalUIManager from '../managers/SeasonalUIManager.js';
+import SnowflakeEffectManager from '../managers/SnowflakeEffectManager.js';
 import InfoIcon from './InfoIcon.js';
 import tooltipContent from '../tooltipContent.js';
 import stateService from '../StateService.js';
@@ -20,6 +22,8 @@ import shellService from '../services/ShellService.js';
  * @property {BreadcrumbManager} breadcrumbManager Manages breadcrumb navigation.
  * @property {SearchManager} searchManager Manages search functionality.
  * @property {WizardManager} wizardManager Manages the filtering wizard.
+ * @property {SeasonalUIManager} seasonalUIManager Manages seasonal UI effects.
+ * @property {SnowflakeEffectManager} snowflakeEffectManager Manages the falling snowflake effect.
  * @property {DownloadUI} downloadUI Manages download-related UI components.
  */
 class UIManager {
@@ -38,9 +42,68 @@ class UIManager {
     this.breadcrumbManager = new BreadcrumbManager();
     this.searchManager = new SearchManager(this);
     this.wizardManager = new WizardManager(this);
+    this.seasonalUIManager = new SeasonalUIManager();
+    this.snowflakeEffectManager = new SnowflakeEffectManager();
 
     this.downloadUI = null;
     this.subTextTimer = null;
+
+    this.headerEl = document.querySelector('header');
+    this.footerEl = document.querySelector('footer');
+
+    this.headerHeight = this.headerEl ? this.headerEl.offsetHeight : 0;
+    this.footerHeight = this.footerEl ? this.footerEl.offsetHeight : 0;
+
+    const snowflakeButton = document.getElementById('snowflake-btn');
+    if (this.seasonalUIManager.isChristmasSeason()) {
+        snowflakeButton.classList.remove('hidden');
+        const isActive = this.seasonalUIManager.isChristmasEffectActive();
+
+        if (isActive) {
+            snowflakeButton.classList.add('text-snowflake-accent');
+            snowflakeButton.classList.remove('text-white'); // Ensure white is removed
+            snowflakeButton.classList.remove('text-neutral-400'); // Ensure neutral-400 is removed
+            this.snowflakeEffectManager.init(document.body, this.headerHeight, this.footerHeight);
+            this.snowflakeEffectManager.start();
+        } else {
+            snowflakeButton.classList.add('text-white'); // Default to white if not active
+            snowflakeButton.classList.remove('text-snowflake-accent'); // Ensure accent is removed
+            snowflakeButton.classList.remove('text-neutral-400'); // Ensure neutral-400 is removed
+        }
+
+
+        snowflakeButton.addEventListener('click', () => {
+            const currentState = this.seasonalUIManager.isChristmasEffectActive();
+            const newState = !currentState;
+            this.toggleSnowflakeEffect(newState);
+
+            if (newState) { // Snowfall is being turned ON
+                snowflakeButton.classList.add('text-snowflake-accent');
+                snowflakeButton.classList.remove('text-white');
+            } else { // Snowfall is being turned OFF
+                snowflakeButton.classList.add('text-white');
+                snowflakeButton.classList.remove('text-snowflake-accent');
+            }
+            snowflakeButton.classList.remove('text-neutral-400'); // Just in case, always remove
+        });
+    }
+  }
+
+  /**
+   * Toggles the Christmas snowflake effect.
+   * @param {boolean} enable Whether to enable or disable the effect.
+   */
+  toggleSnowflakeEffect(enable) {
+    this.seasonalUIManager.setChristmasEffect(enable);
+    if (enable) {
+        // Re-initialize in case it was destroyed or not initialized yet
+        if (!this.snowflakeEffectManager.canvas) {
+            this.snowflakeEffectManager.init(document.body, this.headerHeight, this.footerHeight);
+        }
+        this.snowflakeEffectManager.start();
+    } else {
+        this.snowflakeEffectManager.stop();
+    }
   }
 
   /**

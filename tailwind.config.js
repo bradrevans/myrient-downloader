@@ -25,6 +25,13 @@ module.exports = {
           500: '#ef4444',
           600: '#dc2626',
         },
+        'snowflake-accent': '#00BCD4',
+      },
+      zIndex: {
+        '60': '60',
+        '70': '70',
+        '80': '80',
+        '90': '90',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
