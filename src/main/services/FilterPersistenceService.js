@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { migrateFilterPreset, needsMigration } from '../utils/filterMigration.js';
 
 /**
  * Handles the reading and writing of filter presets to a JSON file.
@@ -58,11 +59,14 @@ class FilterPersistenceService {
    */
   async saveFilter(newFilter) {
     const filters = await this._readFilters();
-    const existingIndex = filters.findIndex(f => f.name === newFilter.name && f.archiveHref === newFilter.archiveHref && f.directoryHref === newFilter.directoryHref);
+    // Apply migration if newFilter is in the old format (e.g., from an external source or older part of the app)
+    const filterToSave = needsMigration(newFilter) ? migrateFilterPreset(newFilter) : newFilter;
+
+    const existingIndex = filters.findIndex(f => f.name === filterToSave.name && f.fullPath === filterToSave.fullPath);
     if (existingIndex > -1) {
-      filters[existingIndex] = newFilter; // Update existing filter
+      filters[existingIndex] = filterToSave; // Update existing filter
     } else {
-      filters.push(newFilter);
+      filters.push(filterToSave);
     }
     await this._writeFilters(filters);
     return filters;
@@ -75,7 +79,8 @@ class FilterPersistenceService {
    */
   async deleteFilter(filterToDelete) {
     let filters = await this._readFilters();
-    filters = filters.filter(f => f.name !== filterToDelete.name || f.archiveHref !== filterToDelete.archiveHref || f.directoryHref !== filterToDelete.directoryHref);
+    // Use fullPath for identification as archiveHref/directoryHref are deprecated in new format
+    filters = filters.filter(f => f.name !== filterToDelete.name || f.fullPath !== filterToDelete.fullPath);
     await this._writeFilters(filters);
     return filters;
   }
@@ -87,7 +92,7 @@ class FilterPersistenceService {
    */
   async deleteFilters(filtersToDelete) {
     let filters = await this._readFilters();
-    filters = filters.filter(f => !filtersToDelete.some(fd => f.name === fd.name && f.archiveHref === fd.archiveHref && f.directoryHref === fd.directoryHref));
+    filters = filters.filter(f => !filtersToDelete.some(fd => f.name === fd.name && f.fullPath === fd.fullPath));
     await this._writeFilters(filters);
     return filters;
   }
@@ -113,11 +118,21 @@ class FilterPersistenceService {
         throw new Error('Invalid filter format.');
       }
 
+      // Migrate imported filters if necessary
+      const migratedImportedFilters = importedFilters.map(filter => {
+        if (needsMigration(filter)) {
+          console.log(`Migrating imported filter "${filter.name}" to new format.`);
+          return migrateFilterPreset(filter);
+        }
+        return filter;
+      });
+
       let currentFilters = await this._readFilters();
 
-      importedFilters.forEach(importedFilter => {
+      migratedImportedFilters.forEach(importedFilter => {
         if (importedFilter && importedFilter.name) {
-          const existingIndex = currentFilters.findIndex(f => f.name === importedFilter.name && f.archiveHref === importedFilter.archiveHref && f.directoryHref === importedFilter.directoryHref);
+          // Use fullPath for identification as archiveHref/directoryHref are deprecated in new format
+          const existingIndex = currentFilters.findIndex(f => f.name === importedFilter.name && f.fullPath === importedFilter.fullPath);
           if (existingIndex > -1) {
             currentFilters[existingIndex] = importedFilter;
           } else {

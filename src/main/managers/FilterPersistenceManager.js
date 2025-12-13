@@ -2,6 +2,7 @@ import { app, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import FilterPersistenceService from '../services/FilterPersistenceService.js';
+import { migrateFilterPreset, needsMigration } from '../utils/filterMigration.js';
 
 /**
  * Manages the persistence of filter presets, handling operations like saving, deleting, importing, and exporting.
@@ -22,16 +23,37 @@ class FilterPersistenceManager {
 
   /**
    * Ensures that the filter data file exists. If it doesn't, an empty file is created.
+   * It also performs migration of old filter presets to the new format.
    * @param {string} filePath - The path to the filter data file.
    * @private
    */
   async _ensureDataFileExists(filePath) {
+    let filters = [];
     try {
       await fs.access(filePath);
+      const data = await fs.readFile(filePath, 'utf-8');
+      filters = JSON.parse(data);
     } catch (error) {
       if (error.code === 'ENOENT') {
         await fs.writeFile(filePath, '[]', 'utf-8');
+        return;
       }
+      console.error("Error reading filters file, assuming empty for safety:", error);
+    }
+
+    let migrationOccurred = false;
+    const migratedFilters = filters.map(filter => {
+      if (needsMigration(filter)) {
+        migrationOccurred = true;
+        return migrateFilterPreset(filter);
+      }
+      return filter;
+    });
+
+    if (migrationOccurred) {
+      console.log('Migrating old filter presets to new format...');
+      await fs.writeFile(filePath, JSON.stringify(migratedFilters, null, 2), 'utf-8');
+      console.log('Filter presets migrated successfully.');
     }
   }
 
