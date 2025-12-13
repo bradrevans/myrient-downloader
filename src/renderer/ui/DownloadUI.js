@@ -530,7 +530,11 @@ export default class DownloadUI {
     if (!elements.downloadDirBtn) return;
 
     if (!this.stateService.get('downloadDirectory')) {
-      alert("Please select a download directory first.");
+      await this.uiManager.showConfirmationModal('Please select a download directory first.', {
+        title: 'Download Directory Missing',
+        confirmText: 'Ok',
+        cancelText: null
+      });
       return;
     }
 
