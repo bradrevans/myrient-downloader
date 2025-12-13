@@ -84,7 +84,8 @@ class StateService {
       throttleSpeed: 100,
       throttleUnit: 'KB/s',
       savedFilters: [],
-      christmasEffectActive: null, // Default value
+      christmasEffectActive: false, // Default value
+      fireworkEffectActive: false, // Default value
     };
 
     // Load persisted state from localStorage
@@ -92,6 +93,11 @@ class StateService {
     if (storedChristmasEffectActive !== null) {
       // localStorage stores strings, so parse it back to a boolean
       this.state.christmasEffectActive = JSON.parse(storedChristmasEffectActive);
+    }
+
+    const storedFireworkEffectActive = localStorage.getItem('fireworkEffectActive');
+    if (storedFireworkEffectActive !== null) {
+      this.state.fireworkEffectActive = JSON.parse(storedFireworkEffectActive);
     }
   }
 
@@ -168,7 +174,7 @@ class StateService {
     this.state[key] = value;
 
     // Persist specific keys to localStorage
-    if (key === 'christmasEffectActive') {
+    if (key === 'christmasEffectActive' || key === 'fireworkEffectActive') {
       localStorage.setItem(key, JSON.stringify(value));
     }
 

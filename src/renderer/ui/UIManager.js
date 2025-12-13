@@ -5,6 +5,7 @@ import SearchManager from '../managers/SearchManager.js';
 import WizardManager from '../managers/WizardManager.js';
 import SeasonalUIManager from '../managers/SeasonalUIManager.js';
 import SnowflakeEffectManager from '../managers/SnowflakeEffectManager.js';
+import FireworkEffectManager from '../managers/FireworkEffectManager.js';
 import InfoIcon from './InfoIcon.js';
 import tooltipContent from '../tooltipContent.js';
 import stateService from '../StateService.js';
@@ -24,6 +25,7 @@ import shellService from '../services/ShellService.js';
  * @property {WizardManager} wizardManager Manages the filtering wizard.
  * @property {SeasonalUIManager} seasonalUIManager Manages seasonal UI effects.
  * @property {SnowflakeEffectManager} snowflakeEffectManager Manages the falling snowflake effect.
+ * @property {FireworkEffectManager} fireworkEffectManager Manages the New Year firework effect.
  * @property {DownloadUI} downloadUI Manages download-related UI components.
  */
 class UIManager {
@@ -44,6 +46,7 @@ class UIManager {
     this.wizardManager = new WizardManager(this);
     this.seasonalUIManager = new SeasonalUIManager();
     this.snowflakeEffectManager = new SnowflakeEffectManager();
+    this.fireworkEffectManager = new FireworkEffectManager();
 
     this.downloadUI = null;
     this.subTextTimer = null;
@@ -54,56 +57,23 @@ class UIManager {
     this.headerHeight = this.headerEl ? this.headerEl.offsetHeight : 0;
     this.footerHeight = this.footerEl ? this.footerEl.offsetHeight : 0;
 
-    const snowflakeButton = document.getElementById('snowflake-btn');
-    if (this.seasonalUIManager.isChristmasSeason()) {
-        snowflakeButton.classList.remove('hidden');
-        const isActive = this.seasonalUIManager.isChristmasEffectActive();
+    this._setupSeasonalEffectButton(
+      'snowflake-btn',
+      this.seasonalUIManager.isChristmasSeason.bind(this.seasonalUIManager),
+      this.seasonalUIManager.isChristmasEffectActive.bind(this.seasonalUIManager),
+      this.seasonalUIManager.setChristmasEffect.bind(this.seasonalUIManager),
+      this.snowflakeEffectManager,
+      'text-snowflake-accent'
+    );
 
-        if (isActive) {
-            snowflakeButton.classList.add('text-snowflake-accent');
-            snowflakeButton.classList.remove('text-white'); // Ensure white is removed
-            snowflakeButton.classList.remove('text-neutral-400'); // Ensure neutral-400 is removed
-            this.snowflakeEffectManager.init(document.body, this.headerHeight, this.footerHeight);
-            this.snowflakeEffectManager.start();
-        } else {
-            snowflakeButton.classList.add('text-white'); // Default to white if not active
-            snowflakeButton.classList.remove('text-snowflake-accent'); // Ensure accent is removed
-            snowflakeButton.classList.remove('text-neutral-400'); // Ensure neutral-400 is removed
-        }
-
-
-        snowflakeButton.addEventListener('click', () => {
-            const currentState = this.seasonalUIManager.isChristmasEffectActive();
-            const newState = !currentState;
-            this.toggleSnowflakeEffect(newState);
-
-            if (newState) { // Snowfall is being turned ON
-                snowflakeButton.classList.add('text-snowflake-accent');
-                snowflakeButton.classList.remove('text-white');
-            } else { // Snowfall is being turned OFF
-                snowflakeButton.classList.add('text-white');
-                snowflakeButton.classList.remove('text-snowflake-accent');
-            }
-            snowflakeButton.classList.remove('text-neutral-400'); // Just in case, always remove
-        });
-    }
-  }
-
-  /**
-   * Toggles the Christmas snowflake effect.
-   * @param {boolean} enable Whether to enable or disable the effect.
-   */
-  toggleSnowflakeEffect(enable) {
-    this.seasonalUIManager.setChristmasEffect(enable);
-    if (enable) {
-        // Re-initialize in case it was destroyed or not initialized yet
-        if (!this.snowflakeEffectManager.canvas) {
-            this.snowflakeEffectManager.init(document.body, this.headerHeight, this.footerHeight);
-        }
-        this.snowflakeEffectManager.start();
-    } else {
-        this.snowflakeEffectManager.stop();
-    }
+    this._setupSeasonalEffectButton(
+      'firework-btn',
+      this.seasonalUIManager.isNewYearSeason.bind(this.seasonalUIManager),
+      this.seasonalUIManager.isNewYearEffectActive.bind(this.seasonalUIManager),
+      this.seasonalUIManager.setNewYearEffect.bind(this.seasonalUIManager),
+      this.fireworkEffectManager,
+      'text-firework-accent'
+    );
   }
 
   /**
@@ -167,6 +137,56 @@ class UIManager {
     subtextEl.textContent = '';
     subtextEl.classList.add('hidden');
     subtextEl.classList.remove('animate-fade-in');
+  }
+
+  /**
+   * Helper method to set up seasonal effect buttons.
+   * @param {string} buttonId The ID of the button element.
+   * @param {function(): boolean} isSeasonActiveFn Function to check if the current season is active.
+   * @param {function(): boolean} isEffectActiveFn Function to check if the effect is currently active.
+   * @param {function(boolean): void} setEffectFn Function to set the effect's active state.
+   * @param {object} effectManager The manager instance for the effect (e.g., snowflakeEffectManager, fireworkEffectManager).
+   * @param {string} accentClass The Tailwind class for the accent color (e.g., 'text-snowflake-accent').
+   * @private
+   */
+  _setupSeasonalEffectButton(buttonId, isSeasonActiveFn, isEffectActiveFn, setEffectFn, effectManager, accentClass) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    if (isSeasonActiveFn()) { // Check if the season is active
+      button.classList.remove('hidden');
+      const isActive = isEffectActiveFn();
+
+      if (isActive) {
+        button.classList.add(accentClass);
+        button.classList.remove('text-white', 'text-neutral-400');
+        effectManager.init(document.body, this.headerHeight, this.footerHeight);
+        effectManager.start();
+      } else {
+        button.classList.add('text-white');
+        button.classList.remove(accentClass, 'text-neutral-400');
+      }
+
+      button.addEventListener('click', () => {
+        const currentState = isEffectActiveFn();
+        const newState = !currentState;
+        setEffectFn(newState); // Update state service
+
+        if (newState) { // Effect is being turned ON
+          button.classList.add(accentClass);
+          button.classList.remove('text-white', 'text-neutral-400');
+          // Re-initialize in case it was destroyed or not initialized yet
+          if (!effectManager.canvas) {
+            effectManager.init(document.body, this.headerHeight, this.footerHeight);
+          }
+          effectManager.start();
+        } else { // Effect is being turned OFF
+          button.classList.add('text-white');
+          button.classList.remove(accentClass, 'text-neutral-400');
+          effectManager.stop();
+        }
+      });
+    }
   }
 
   /**

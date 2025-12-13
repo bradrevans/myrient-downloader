@@ -26,6 +26,7 @@ module.exports = {
           600: '#dc2626',
         },
         'snowflake-accent': '#00BCD4',
+        'firework-accent': '#FFB100',
       },
       zIndex: {
         '60': '60',
