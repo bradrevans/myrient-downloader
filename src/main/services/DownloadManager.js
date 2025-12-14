@@ -254,7 +254,7 @@ class DownloadManager {
     for (const file of archiveFiles) {
       const filePath = file.path;
       if (!filePath || !fs.existsSync(filePath)) {
-        this.downloadConsole.logError(`Archive not found at ${filePath}, skipping size calculation.`);
+        this.downloadConsole.logError(`Archive not found at ${filePath}, skipping metadata scan.`);
         continue;
       }
       let zipfile;
@@ -263,35 +263,13 @@ class DownloadManager {
         let entry = await zipfile.readEntry();
         while (entry) {
           totalEntriesOverall++;
-          entry = await zipfile.readEntry();
-        }
-      } catch (e) {
-        this.downloadConsole.logError(`Error counting entries for ${file.name}: ${e.message}`);
-      } finally {
-        if (zipfile) {
-          await zipfile.close();
-        }
-      }
-    }
-
-    for (const file of archiveFiles) {
-      const filePath = file.path;
-      if (!filePath || !fs.existsSync(filePath)) {
-        this.downloadConsole.logError(`Archive not found at ${filePath}, skipping uncompressed size calculation.`);
-        continue;
-      }
-      let zipfile;
-      try {
-        zipfile = await open(filePath);
-        let entry = await zipfile.readEntry();
-        while (entry) {
           if (entry.uncompressedSize > 0) {
             totalUncompressedSizeOfAllArchives += entry.uncompressedSize;
           }
           entry = await zipfile.readEntry();
         }
       } catch (e) {
-        this.downloadConsole.logError(`Error calculating size for ${file.name}: ${e.message}`);
+        this.downloadConsole.logError(`Error reading metadata for ${file.name}: ${e.message}`);
       } finally {
         if (zipfile) {
           await zipfile.close();
